@@ -1,0 +1,146 @@
+version: "2"
+run:
+  modules-download-mode: readonly
+  tests: true
+output:
+  formats:
+    text:
+      path: stdout
+      print-linter-name: true
+      print-issued-lines: true
+  path-prefix: ""
+linters:
+  default: none
+  enable:
+    - copyloopvar
+    - dupl
+    - errcheck
+    - errname
+    - errorlint
+    - gocritic
+    - gocyclo
+    - godot
+    - govet
+    - ineffassign
+    - misspell
+    - nlreturn
+    - noctx
+    - prealloc
+    - revive
+    - sqlclosecheck
+    - staticcheck
+    - unconvert
+    - unused
+    - wastedassign
+    - whitespace
+    - wsl
+  settings:
+    depguard:
+      rules:
+        gofakeit:
+          list-mode: original
+          files:
+            - '!**/*_test.go'
+            - '!**/mBaaS/pkg/**/*.go'
+            - '!**/pkg/client/**/*.go'
+          deny:
+            - pkg: github.com/brianvoe/gofakeit
+              desc: gofakeit package can only be used in testing code, CLI clients or the Kernel
+            - pkg: github.com/stretchr/testify
+              desc: testify package can only be used in testing code or by the Kernel
+    dupl:
+      threshold: 200
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+      exclude-functions:
+        - (github.com/go-kit/kit/log.Logger).Log
+        - (io.Closer).Close
+        - (net.Listener).Close
+        - (net.Conn).Close
+        - (net.PacketConn).Close
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+      settings:
+        captLocal:
+          paramsOnly: true
+        hugeParam:
+          sizeThreshold: 333
+        rangeValCopy:
+          sizeThreshold: 32
+    gocyclo:
+      min-complexity: 20
+    govet:
+      enable:
+        - shadow
+      settings:
+        printf:
+          funcs:
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+            - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+    lll:
+      line-length: 120
+      tab-width: 1
+    misspell:
+      locale: US
+    nakedret:
+      max-func-lines: 30
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: false
+    revive:
+      confidence: 0.8
+      severity: warning
+    unparam:
+      check-exported: false
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - dupl
+        path: _test\.go
+      - linters:
+          - govet
+        text: 'copylocks:'
+      - path: (.+)\.go$
+        text: EXC0012
+      - path: (.+)\.go$
+        text: EXC0013
+      - path: (.+)\.go$
+        text: EXC0014
+      - path: (.+)\.go$
+        text: EXC0015
+    paths:
+      - protos
+      - third_party
+      - missions
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-same-issues: 0
+  new: false
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+  exclusions:
+    generated: lax
+    paths:
+      - protos
+      - third_party
+      - missions
+      - third_party$
+      - builtin$
+      - examples$
