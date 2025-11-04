@@ -1,41 +1,47 @@
 package dynamodb
 
-import "github.com/aws/aws-sdk-go-v2/service/dynamodb"
+import (
+	"errors"
+
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+)
 
 // Option is a function that configures options for the DynamoDB checker.
 type Option func(*options) error
 
+type PermissionsCheck struct {
+	IAM          *iam.Client
+	PrincipalARN string
+
+	Get        bool
+	BatchGet   bool
+	Query      bool
+	Scan       bool
+	Put        bool
+	BatchWrite bool
+	Delete     bool
+}
+
 type options struct {
-	client          *dynamodb.Client
-	table           string
-	getCheck        bool
-	batchGetCheck   bool
-	queryCheck      bool
-	scanCheck       bool
-	putItemCheck    bool
-	batchWriteCheck bool
-	deleteCheck     bool
+	client   *dynamodb.Client
+	table    string
+	pChecker *PermissionsCheck
 }
 
-func WithGetCheck() Option {
+// WithPermissionsCheck configures the checker to perform permissions checks
+// using the provided PermissionsCheck settings.
+func WithPermissionsCheck(c PermissionsCheck) Option {
 	return func(o *options) error {
-		o.getCheck = true
+		if c.IAM == nil {
+			return errors.New("IAM client is required for permissions check")
+		}
 
-		return nil
-	}
-}
+		if c.PrincipalARN == "" {
+			return errors.New("PrincipalARN is required for permissions check")
+		}
 
-func WithBatchGetCheck() Option {
-	return func(o *options) error {
-		o.batchGetCheck = true
-
-		return nil
-	}
-}
-
-func WithPutCheck() Option {
-	return func(o *options) error {
-		o.putItemCheck = true
+		o.pChecker = &c
 
 		return nil
 	}

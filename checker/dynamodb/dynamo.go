@@ -2,12 +2,13 @@ package dynamodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/botchris/go-health"
 )
 
@@ -36,57 +37,87 @@ func NewChecker(client *dynamodb.Client, tableName string, o ...Option) (health.
 
 // Check verifies connectivity and optionally permissions to DynamoDB.
 func (c *dynamoChecker) Check(ctx context.Context) error {
-	if _, err := c.opts.client.DescribeTable(ctx, &dynamodb.DescribeTableInput{TableName: aws.String(c.opts.table)}); err != nil {
-		return fmt.Errorf("dynamodb connectivity failed: %w", err)
+	dsc, dErr := c.opts.client.DescribeTable(ctx, &dynamodb.DescribeTableInput{TableName: aws.String(c.opts.table)})
+	if dErr != nil {
+		return fmt.Errorf("dynamodb connectivity failed: %w", dErr)
 	}
 
-	if c.opts.getCheck {
-		_, err := c.opts.client.GetItem(ctx, &dynamodb.GetItemInput{
-			TableName: aws.String(c.opts.table),
-			Key:       map[string]types.AttributeValue{}, // empty key, will fail if table requires key, but will check permission
-		})
+	if dsc.Table.TableStatus != types.TableStatusActive {
+		return fmt.Errorf("dynamodb table %s is not active", c.opts.table)
+	}
 
-		if err != nil && !isAccessDenied(err) {
-			return fmt.Errorf("dynamodb GetItem check failed: %w", err)
+	indexStatus := make([]error, 0)
+
+	for i := range dsc.Table.GlobalSecondaryIndexes {
+		if dsc.Table.GlobalSecondaryIndexes[i].IndexStatus != types.IndexStatusActive {
+			indexStatus = append(indexStatus, fmt.Errorf("dynamodb table %s has non-active global secondary index %s", c.opts.table, aws.ToString(dsc.Table.GlobalSecondaryIndexes[i].IndexName)))
 		}
 	}
 
-	if c.opts.batchGetCheck {
-		_, err := c.opts.client.BatchGetItem(ctx, &dynamodb.BatchGetItemInput{
-			RequestItems: map[string]types.KeysAndAttributes{
-				c.opts.table: {
-					Keys: []map[string]types.AttributeValue{{}}, // empty key
-				},
-			},
-		})
-
-		if err != nil && !isAccessDenied(err) {
-			return fmt.Errorf("dynamodb BatchGetItem check failed: %w", err)
-		}
+	if len(indexStatus) > 0 {
+		return errors.Join(indexStatus...)
 	}
 
-	if c.opts.putItemCheck {
-		_, err := c.opts.client.PutItem(ctx, &dynamodb.PutItemInput{
-			TableName: aws.String(c.opts.table),
-			Item:      map[string]types.AttributeValue{}, // empty item
-		})
-
-		if err != nil && !isAccessDenied(err) {
-			return fmt.Errorf("dynamodb PutItem check failed: %w", err)
+	if c.opts.pChecker != nil {
+		if err := c.checkDynamoPermissions(ctx, *dsc.Table.TableArn, c.opts.pChecker); err != nil {
+			return fmt.Errorf("%w: dynamodb permissions check failed", err)
 		}
 	}
 
 	return nil
 }
 
-// isAccessDenied returns true if the error is access denied error.
-func isAccessDenied(err error) bool {
-	// AWS SDK v2 does not export AccessDeniedException as a type, so check error string
-	if err == nil {
-		return false
+func (c *dynamoChecker) checkDynamoPermissions(ctx context.Context, tableARN string, pChecker *PermissionsCheck) error {
+	var errs []error
+
+	actions := map[string]bool{
+		"dynamodb:GetItem":        pChecker.Get,
+		"dynamodb:BatchGetItem":   pChecker.BatchGet,
+		"dynamodb:Query":          pChecker.Query,
+		"dynamodb:Scan":           pChecker.Scan,
+		"dynamodb:PutItem":        pChecker.Put,
+		"dynamodb:BatchWriteItem": pChecker.BatchWrite,
+		"dynamodb:DeleteItem":     pChecker.Delete,
 	}
 
-	msg := err.Error()
+	resource := tableARN
 
-	return strings.Contains(msg, "AccessDenied") || strings.Contains(msg, "not authorized") || strings.Contains(msg, "access denied")
+	for action, enabled := range actions {
+		if !enabled {
+			continue
+		}
+
+		input := &iam.SimulatePrincipalPolicyInput{
+			PolicySourceArn: aws.String(pChecker.PrincipalARN),
+			ActionNames:     []string{action},
+			ResourceArns:    []string{resource},
+		}
+
+		out, err := pChecker.IAM.SimulatePrincipalPolicy(ctx, input)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("simulate policy for %s failed: %w", action, err))
+
+			continue
+		}
+
+		allowed := false
+
+		for x := range out.EvaluationResults {
+			if out.EvaluationResults[x].EvalDecision == "allowed" || out.EvaluationResults[x].EvalDecision == "Allowed" {
+				allowed = true
+
+				break
+			}
+		}
+
+		if !allowed {
+			errs = append(errs, fmt.Errorf("permission denied for action %s on %s", action, resource))
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
+	return nil
 }
