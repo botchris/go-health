@@ -52,7 +52,7 @@ func (m sqlChecker) Check(ctx context.Context) (result error) {
 		return
 	}
 
-	rows, err := db.QueryContext(ctx, "SELECT VERSION();")
+	rows, err := db.QueryContext(ctx, "SELECT 1")
 	if err != nil {
 		result = fmt.Errorf("%w: failed to execute version query", err)
 

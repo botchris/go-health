@@ -25,10 +25,10 @@ func TestCheck_MySQLMockSuccess(t *testing.T) {
 	}()
 
 	mock.ExpectPing()
-	mock.ExpectQuery("SELECT VERSION.*").
+	mock.ExpectQuery("SELECT 1.*").
 		WillReturnRows(
 			sqlmock.
-				NewRows([]string{"VERSION()"}).
+				NewRows([]string{"1"}).
 				AddRow("8.0.0"),
 		)
 	mock.ExpectClose()
@@ -97,7 +97,7 @@ func TestCheck_MySQLMockQueryError(t *testing.T) {
 	}()
 
 	mock.ExpectPing()
-	mock.ExpectQuery("SELECT VERSION.*").WillReturnError(sqlmock.ErrCancelled)
+	mock.ExpectQuery("SELECT 1.*").WillReturnError(sqlmock.ErrCancelled)
 
 	checker, err := sql.New("mock-dsn",
 		sql.WithOpener(func(driverName, dataSourceName string) (*sdksql.DB, error) {
