@@ -1,5 +1,8 @@
 # Go Health
 
+[![go test](https://github.com/botchris/go-health/actions/workflows/go-test.yml/badge.svg)](https://github.com/botchris/go-health/actions/workflows/go-test.yml)
+[![golangci-lint](https://github.com/botchris/go-health/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/botchris/go-health/actions/workflows/golangci-lint.yml)
+
 A simple Golang package for performing health checks within your Go applications.
 
 ---
