@@ -18,6 +18,7 @@ type sqlChecker struct {
 // to the database. Supported drivers are "mysql" and "postgres".
 func New(dsn string, o ...Option) (health.Checker, error) {
 	opts := &options{
+		dsn:    dsn,
 		driver: "mysql",
 		opener: sql.Open,
 	}
@@ -27,8 +28,6 @@ func New(dsn string, o ...Option) (health.Checker, error) {
 			return nil, err
 		}
 	}
-
-	opts.dsn = dsn
 
 	return &sqlChecker{opts: opts}, nil
 }
