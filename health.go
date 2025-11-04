@@ -4,8 +4,6 @@ import (
 	"context"
 	"sync"
 	"time"
-
-	"github.com/hashicorp/go-multierror"
 )
 
 // Health manages and performs periodic health checks using registered checkers.
@@ -37,9 +35,9 @@ func New(period time.Duration) *Health {
 
 // Start initiates the health checking process until the provided
 // context is canceled.
-func (h *Health) Start(ctx context.Context) <-chan error {
+func (h *Health) Start(ctx context.Context) <-chan *Error {
 	ticker := time.NewTicker(h.period)
-	errCh := make(chan error)
+	statusChan := make(chan *Error)
 
 	go func() {
 		defer ticker.Stop()
@@ -47,35 +45,57 @@ func (h *Health) Start(ctx context.Context) <-chan error {
 		for {
 			select {
 			case <-ctx.Done():
-				close(errCh)
+				close(statusChan)
 
 				return
 			case <-ticker.C:
-				h.mu.Lock()
+				errMu := sync.Mutex{}
+				errs := make(map[string]error)
+				wg := sync.WaitGroup{}
 
-				errGroup := multierror.Group{}
+				{
+					h.mu.Lock()
 
-				for i := range h.checkers {
-					c := h.checkers[i]
+					for i := range h.checkers {
+						wg.Add(1)
 
-					errGroup.Go(func() error {
-						checkCtx, cancel := context.WithTimeout(ctx, c.timeout)
-						defer cancel()
+						go func(config config) {
+							defer wg.Done()
 
-						return c.checker.Check(checkCtx)
-					})
+							checkCtx, cancel := context.WithTimeout(ctx, config.timeout)
+							defer cancel()
+
+							if err := config.checker.Check(checkCtx); err != nil {
+								errMu.Lock()
+								errs[config.name] = err
+								errMu.Unlock()
+							}
+						}(h.checkers[i])
+					}
+
+					h.mu.Unlock()
 				}
 
-				h.mu.Unlock()
+				wg.Wait()
 
-				e := errGroup.Wait()
+				if len(errs) == 0 {
+					continue
+				}
 
-				errCh <- e.ErrorOrNil()
+				flattenedErrs := make([]error, 0)
+				for _, err := range errs {
+					flattenedErrs = append(flattenedErrs, err)
+				}
+
+				statusChan <- &Error{
+					Errors:  errs,
+					flatten: flattenedErrs,
+				}
 			}
 		}
 	}()
 
-	return errCh
+	return statusChan
 }
 
 // Register adds a new health checker with the specified name and timeout.
