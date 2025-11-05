@@ -49,7 +49,7 @@ import (
 )
 
 func main() {
-	// 1. Create a context that is cancelled on SIGINT or SIGTERM
+	// 1. Create a context that is canceled on SIGINT or SIGTERM
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
