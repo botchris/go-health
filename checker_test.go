@@ -21,6 +21,7 @@ func TestHealth_RegisterAndStart_Success(t *testing.T) {
 
 	for st := range h.Start(ctx) {
 		require.NoError(t, st.AsError())
+		require.NotZero(t, st.Duration)
 	}
 }
 

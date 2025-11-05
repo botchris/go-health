@@ -3,13 +3,15 @@ package health
 import (
 	"errors"
 	"sync"
+	"time"
 )
 
 // Status represents the result of health checks,
 // containing any errors encountered indexed by checker name.
 type Status struct {
-	Errors  map[string]error
-	flatten []error
+	Errors   map[string]error
+	Duration time.Duration
+	flatten  []error
 }
 
 // AsError aggregates all errors in the Status and returns them

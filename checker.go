@@ -52,6 +52,7 @@ func (h *Checker) Start(ctx context.Context) <-chan Status {
 
 				return
 			case <-ticker.C:
+				started := time.Now()
 				st := &synStatus{status: Status{}}
 				wg := sync.WaitGroup{}
 
@@ -76,7 +77,10 @@ func (h *Checker) Start(ctx context.Context) <-chan Status {
 
 				wg.Wait()
 
-				statusChan <- st.status
+				result := &st.status
+				result.Duration = time.Since(started)
+
+				statusChan <- *result
 			}
 		}
 	}()
