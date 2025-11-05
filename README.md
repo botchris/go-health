@@ -52,7 +52,7 @@ func main() {
 	hc := health.NewChecker(time.Second)
 
 	// 3. Register a simple probe.
-	hc.Register("database", time.Second, health.ProbeFunc(func() error {
+	hc.Register("database", time.Second, health.ProbeFunc(func(context.Context) error {
 		time.Sleep(100 * time.Millisecond) // Simulate a database check
 
 		return nil // return an error if the check fails
@@ -67,4 +67,5 @@ func main() {
 		}
 	}
 }
+
 ```
