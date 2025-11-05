@@ -80,8 +80,6 @@ func (c *dynamoChecker) checkDynamoPermissions(ctx context.Context, tableARN str
 		"dynamodb:DeleteItem":     pChecker.Delete,
 	}
 
-	resource := tableARN
-
 	for action, enabled := range actions {
 		if !enabled {
 			continue
@@ -90,7 +88,7 @@ func (c *dynamoChecker) checkDynamoPermissions(ctx context.Context, tableARN str
 		input := &iam.SimulatePrincipalPolicyInput{
 			PolicySourceArn: aws.String(pChecker.PrincipalARN),
 			ActionNames:     []string{action},
-			ResourceArns:    []string{resource},
+			ResourceArns:    []string{tableARN},
 		}
 
 		out, err := pChecker.IAM.SimulatePrincipalPolicy(ctx, input)
@@ -111,7 +109,7 @@ func (c *dynamoChecker) checkDynamoPermissions(ctx context.Context, tableARN str
 		}
 
 		if !allowed {
-			errs = append(errs, fmt.Errorf("permission denied for action %s on %s", action, resource))
+			errs = append(errs, fmt.Errorf("permission denied for action %s on %s", action, tableARN))
 		}
 	}
 
