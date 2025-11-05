@@ -17,7 +17,7 @@ type redisChecker struct {
 
 // New creates new Redis health check that verifies that a connection to the Redis server
 // can be established and a PING command returns the expected PONG response.
-func New(dsn string, o ...Option) (health.Checker, error) {
+func New(dsn string, o ...Option) (health.Probe, error) {
 	redisOptions, err := redis.ParseURL(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to parse redis dsn", err)

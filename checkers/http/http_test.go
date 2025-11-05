@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/botchris/go-health/checker/http"
+	"github.com/botchris/go-health/checkers/http"
 	"github.com/stretchr/testify/require"
 )
 
