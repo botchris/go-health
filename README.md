@@ -15,7 +15,7 @@ go get github.com/botchris/go-health
 
 ## Concepts
 
-### Probes
+### Probe
 
 A Probe is anything that implements the `Probe` interface. The simplest way to create a probe is to use
 the `ProbeFunc` type, which allows you to define a probe using a function.
@@ -27,6 +27,11 @@ Probes are expected to return an error if the check fails, or `nil` if the check
 A Checker is responsible for managing and executing probes at specified intervals. You can register multiple probes
 with a Checker, all of which are executed concurrently for generating health status updates. If a probe fails, the
 Checker will report the failure in the health status.
+
+### Reporter
+
+A reporter is anything capable of reporting the status changes reported by the `Checker`. For example,
+logging the status changes to the console, sending alerts, updating a dashboard, an HTTP endpoint, etc.
 
 ## Example Usage
 
@@ -51,8 +56,8 @@ func main() {
 	// 2. Create a new health checker.
 	hc := health.NewChecker(time.Second)
 
-	// 3. Register a simple probe.
-	hc.Register("database", time.Second, health.ProbeFunc(func(context.Context) error {
+	// 3. AddProbe a simple probe.
+	hc.AddProbe("mysql-db01", time.Second, health.ProbeFunc(func(context.Context) error {
 		time.Sleep(100 * time.Millisecond) // Simulate a database check
 
 		return nil // return an error if the check fails

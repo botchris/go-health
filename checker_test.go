@@ -17,7 +17,7 @@ func TestHealth_RegisterAndStart_Success(t *testing.T) {
 	h := health.NewChecker(50 * time.Millisecond)
 	successChecker := health.ProbeFunc(func(ctx context.Context) error { return nil })
 
-	h.Register("success", 50*time.Millisecond, successChecker)
+	h.AddProbe("success", 50*time.Millisecond, successChecker)
 
 	for st := range h.Start(ctx) {
 		require.NoError(t, st.AsError())
@@ -31,7 +31,7 @@ func TestHealth_RegisterAndStart_Failure(t *testing.T) {
 	h := health.NewChecker(50 * time.Millisecond)
 	failChecker := health.ProbeFunc(func(ctx context.Context) error { return errors.New("fail") })
 
-	h.Register("fail", 50*time.Millisecond, failChecker)
+	h.AddProbe("fail", 50*time.Millisecond, failChecker)
 
 	for st := range h.Start(ctx) {
 		require.Error(t, st.AsError())
@@ -48,8 +48,8 @@ func TestHealth_MultipleCheckers(t *testing.T) {
 	successChecker := health.ProbeFunc(func(ctx context.Context) error { return nil })
 	failChecker := health.ProbeFunc(func(ctx context.Context) error { return sentinel })
 
-	h.Register("success", 50*time.Millisecond, successChecker)
-	h.Register("fail", 50*time.Millisecond, failChecker)
+	h.AddProbe("success", 50*time.Millisecond, successChecker)
+	h.AddProbe("fail", 50*time.Millisecond, failChecker)
 
 	for st := range h.Start(ctx) {
 		require.ErrorIs(t, st.AsError(), sentinel)

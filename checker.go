@@ -8,9 +8,10 @@ import (
 
 // Checker manages and performs periodic health checks using registered checkers.
 type Checker struct {
-	mu       sync.Mutex
-	checkers map[string]probeConfig
-	period   time.Duration
+	checkers  map[string]probeConfig
+	reporters []Reporter
+	period    time.Duration
+	mu        sync.Mutex
 }
 
 type probeConfig struct {
@@ -28,8 +29,9 @@ func NewChecker(period time.Duration) *Checker {
 	}
 
 	return &Checker{
-		checkers: make(map[string]probeConfig),
-		period:   period,
+		checkers:  make(map[string]probeConfig),
+		reporters: make([]Reporter, 0),
+		period:    period,
 	}
 }
 
@@ -82,9 +84,9 @@ func (h *Checker) Start(ctx context.Context) <-chan Status {
 	return statusChan
 }
 
-// Register adds a new Probe with the specified name and timeout.
+// AddProbe adds a new Probe with the specified name and timeout.
 // The Probe will be executed during the health checking process.
-func (h *Checker) Register(name string, timeout time.Duration, checker Probe) *Checker {
+func (h *Checker) AddProbe(name string, timeout time.Duration, checker Probe) *Checker {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -93,6 +95,16 @@ func (h *Checker) Register(name string, timeout time.Duration, checker Probe) *C
 		timeout: timeout,
 		checker: checker,
 	}
+
+	return h
+}
+
+// AddReporter adds a new Reporter to the Checker.
+func (h *Checker) AddReporter(reporter Reporter) *Checker {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.reporters = append(h.reporters, reporter)
 
 	return h
 }
