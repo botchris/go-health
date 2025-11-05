@@ -16,7 +16,7 @@ type httpChecker struct {
 }
 
 // New creates a new HTTPChecker based on the provided configuration.
-func New(url string, o ...Option) (health.Checker, error) {
+func New(url string, o ...Option) (health.Probe, error) {
 	opts := &options{
 		method:     http.MethodGet,
 		statusCode: http.StatusOK,
