@@ -47,7 +47,7 @@ func NewChecker(o ...CheckerOption) (*Checker, error) {
 
 // Start initiates the health checking process in the background
 // until the provided context is canceled. It returns a channel
-// that emits Summary objects at each checking interval.
+// that emits Status objects at each checking interval.
 func (ch *Checker) Start(ctx context.Context) <-chan Status {
 	statusChan := make(chan Status)
 
