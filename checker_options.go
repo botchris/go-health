@@ -10,6 +10,7 @@ type checkerOptions struct {
 	period           time.Duration
 	successThreshold int
 	failureThreshold int
+	reporterTimeout  time.Duration
 }
 
 var defaultCheckerOptions = checkerOptions{
@@ -17,6 +18,7 @@ var defaultCheckerOptions = checkerOptions{
 	period:           10 * time.Second,
 	successThreshold: 1,
 	failureThreshold: 3,
+	reporterTimeout:  30 * time.Second,
 }
 
 // WithInitialDelay sets an initial delay before the first health check is performed
@@ -80,6 +82,21 @@ func WithFailureThreshold(threshold int) CheckerOption {
 		}
 
 		o.failureThreshold = threshold
+
+		return nil
+	}
+}
+
+// WithReporterTimeout sets the timeout duration for reporter operations.
+// The timeout must be at least 1 second. If a duration less than
+// 1 second is provided, it is rounded up to 1 second.
+func WithReporterTimeout(d time.Duration) CheckerOption {
+	return func(o *checkerOptions) error {
+		if d < time.Second {
+			d = time.Second
+		}
+
+		o.reporterTimeout = d
 
 		return nil
 	}
