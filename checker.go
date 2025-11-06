@@ -9,6 +9,8 @@ import (
 	"github.com/cenkalti/backoff/v4"
 )
 
+const reporterRetryStopDuration = 30 * time.Second
+
 // Checker manages and performs periodic health checks using registered checkers.
 type Checker struct {
 	opts                 checkerOptions
@@ -179,7 +181,7 @@ func (ch *Checker) startReporting(ctx context.Context, statusChan <-chan Status)
 						func() error { return r.Report(ctx, status) },
 						backoff.WithContext(
 							backoff.NewExponentialBackOff(
-								backoff.WithRetryStopDuration(30*time.Second),
+								backoff.WithRetryStopDuration(reporterRetryStopDuration),
 							),
 							ctx,
 						),
