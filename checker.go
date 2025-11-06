@@ -38,40 +38,9 @@ func NewChecker(period time.Duration) *Checker {
 // until the provided context is canceled. It returns a channel
 // that emits Summary objects at each checking interval.
 func (h *Checker) Start(ctx context.Context) <-chan Status {
-	ticker := time.NewTicker(h.period)
 	statusChan := make(chan Status)
 
-	go func() {
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				close(statusChan)
-
-				return
-			case <-ticker.C:
-				st := newSyncStatus()
-				wg := sync.WaitGroup{}
-				checkers := h.getCheckers()
-
-				for i := range checkers {
-					wg.Add(1)
-
-					go func(config *probeConfig) {
-						defer wg.Done()
-
-						st.probe(ctx, config)
-					}(checkers[i])
-				}
-
-				wg.Wait()
-
-				statusChan <- st.read()
-			}
-		}
-	}()
-
+	go h.startChecking(ctx, statusChan)
 	go h.startReporting(ctx, statusChan)
 
 	return statusChan
@@ -102,6 +71,43 @@ func (h *Checker) AddReporter(reporter Reporter) *Checker {
 	return h
 }
 
+// startChecking performs health checks at regular intervals
+// defined by the Checker's period. It sends the results to the provided status channel.
+// The function runs until the provided context is canceled.
+func (h *Checker) startChecking(ctx context.Context, statusChan chan<- Status) {
+	ticker := time.NewTicker(h.period)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			close(statusChan)
+
+			return
+		case <-ticker.C:
+			st := newSyncStatus()
+			wg := sync.WaitGroup{}
+			checkers := h.getCheckers()
+
+			for i := range checkers {
+				wg.Add(1)
+
+				go func(config *probeConfig) {
+					defer wg.Done()
+
+					st.probe(ctx, config)
+				}(checkers[i])
+			}
+
+			wg.Wait()
+
+			statusChan <- st.read()
+		}
+	}
+}
+
+// startReporting listens for status updates and reports them using all registered reporters.
+// It runs until the provided context is canceled or the status channel is closed.
 func (h *Checker) startReporting(ctx context.Context, statusChan <-chan Status) {
 	for {
 		select {
@@ -134,7 +140,6 @@ func (h *Checker) startReporting(ctx context.Context, statusChan <-chan Status) 
 					if rErr != nil {
 						log.Printf("health checker: reporter %T failed to report status: %s", r, rErr)
 					}
-
 				}(reporter)
 			}
 
