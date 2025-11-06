@@ -52,3 +52,35 @@ func WithPeriod(d time.Duration) CheckerOption {
 		return nil
 	}
 }
+
+// WithSuccessThreshold sets the number of consecutive successful
+// checks required to consider the system healthy. The threshold
+// must be at least 1. If a value less than 1 is provided, it
+// defaults to 1.
+func WithSuccessThreshold(threshold int) CheckerOption {
+	return func(o *checkerOptions) error {
+		if threshold < 1 {
+			threshold = 1
+		}
+
+		o.successThreshold = threshold
+
+		return nil
+	}
+}
+
+// WithFailureThreshold sets the number of consecutive failed
+// checks required to consider the system unhealthy. The threshold
+// must be at least 1. If a value less than 1 is provided, it
+// defaults to 1.
+func WithFailureThreshold(threshold int) CheckerOption {
+	return func(o *checkerOptions) error {
+		if threshold < 1 {
+			threshold = 1
+		}
+
+		o.failureThreshold = threshold
+
+		return nil
+	}
+}
