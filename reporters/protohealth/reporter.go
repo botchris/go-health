@@ -7,7 +7,7 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-// HealthServer is an interface representing the gRPC health server's SetServingStatus method.
+// HealthServer abstract the part of gRPC health server we need.
 type HealthServer interface {
 	SetServingStatus(service string, status healthpb.HealthCheckResponse_ServingStatus)
 }
