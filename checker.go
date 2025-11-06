@@ -11,27 +11,35 @@ import (
 
 // Checker manages and performs periodic health checks using registered checkers.
 type Checker struct {
-	period    time.Duration
+	opts      checkerOptions
 	checkers  map[string]*probeConfig
 	reporters []Reporter
 	mu        sync.RWMutex
 }
 
 type probeConfig struct {
-	name    string
-	timeout time.Duration
-	probe   Probe
+	name  string
+	probe Probe
+	opts  probeOptions
 }
 
 // NewChecker creates a new Checker instance with the specified checking period.
 // The period defines how often health checks are performed. And it must be
 // at least 1 second.
-func NewChecker(period time.Duration) *Checker {
+func NewChecker(o ...CheckerOption) (*Checker, error) {
+	opts := defaultCheckerOptions
+
+	for i := range o {
+		if err := o[i](&opts); err != nil {
+			return nil, err
+		}
+	}
+
 	return &Checker{
-		period:    period,
+		opts:      opts,
 		checkers:  make(map[string]*probeConfig),
 		reporters: make([]Reporter, 0),
-	}
+	}, nil
 }
 
 // Start initiates the health checking process in the background
@@ -46,16 +54,22 @@ func (h *Checker) Start(ctx context.Context) <-chan Status {
 	return statusChan
 }
 
-// AddProbe adds a new Probe with the specified name and timeout.
+// AddProbe adds a new Probe with the specified name.
 // The Probe will be executed during the health checking process.
-func (h *Checker) AddProbe(name string, timeout time.Duration, checker Probe) *Checker {
+func (h *Checker) AddProbe(name string, checker Probe, o ...ProbeOption) *Checker {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	opts := defaultProbeOptions
+
+	for i := range o {
+		o[i](&opts)
+	}
+
 	h.checkers[name] = &probeConfig{
-		name:    name,
-		timeout: timeout,
-		probe:   checker,
+		name:  name,
+		probe: checker,
+		opts:  opts,
 	}
 
 	return h
@@ -75,8 +89,18 @@ func (h *Checker) AddReporter(reporter Reporter) *Checker {
 // defined by the Checker's period. It sends the results to the provided status channel.
 // The function runs until the provided context is canceled.
 func (h *Checker) startChecking(ctx context.Context, statusChan chan<- Status) {
-	ticker := time.NewTicker(h.period)
+	ticker := time.NewTicker(h.opts.period)
 	defer ticker.Stop()
+
+	if h.opts.initialDelay > 0 {
+		select {
+		case <-ctx.Done():
+			close(statusChan)
+
+			return
+		case <-time.After(h.opts.initialDelay):
+		}
+	}
 
 	for {
 		select {

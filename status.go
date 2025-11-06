@@ -40,7 +40,7 @@ func newSyncStatus() *syncStatus {
 }
 
 func (s *syncStatus) probe(ctx context.Context, p *probeConfig) {
-	probeCtx, cancel := context.WithTimeout(ctx, p.timeout)
+	probeCtx, cancel := context.WithTimeout(ctx, p.opts.timeout)
 	defer cancel()
 
 	err := p.probe.Check(probeCtx)
