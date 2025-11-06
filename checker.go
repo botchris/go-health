@@ -106,7 +106,7 @@ func (ch *Checker) startChecking(ctx context.Context, statusChan chan<- Status) 
 
 			return
 		case <-ticker.C:
-			st := newSyncStatus()
+			ss := newSyncStatus()
 			wg := sync.WaitGroup{}
 			checkers := ch.getCheckers()
 
@@ -116,12 +116,12 @@ func (ch *Checker) startChecking(ctx context.Context, statusChan chan<- Status) 
 				go func(config *probeConfig) {
 					defer wg.Done()
 
-					st.probe(ctx, config)
+					ss.probe(ctx, config)
 				}(checkers[i])
 			}
 
 			wg.Wait()
-			ch.notifyStatus(st, statusChan)
+			ch.notifyStatus(ss, statusChan)
 		}
 	}
 }

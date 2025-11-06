@@ -3,6 +3,7 @@ package health
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -10,20 +11,28 @@ import (
 // Status represents the result of health checks,
 // containing any errors encountered indexed by checker name.
 type Status struct {
-	Errors   map[string]error
+	// Errors maps checker names to their respective errors.
+	// If a checker passed, its error will be nil.
+	Errors map[string]error
+
+	// Flatten is a slice of all non-nil errors from the health checks.
+	Flatten []error
+
+	// Duration indicates the total time taken to perform the health checks.
 	Duration time.Duration
-	flatten  []error
 }
 
 // AsError aggregates all errors in the Status and returns them
 // as a single error using errors.Join. If there are no errors,
 // it returns nil.
-func (s *Status) AsError() error {
-	if len(s.flatten) == 0 {
+func (s Status) AsError() error {
+	if len(s.Flatten) == 0 {
 		return nil
 	}
 
-	return errors.Join(s.flatten...)
+	combined := errors.Join(s.Flatten...)
+
+	return fmt.Errorf("health check failed with %d errors: %w", len(s.Errors), combined)
 }
 
 type syncStatus struct {
@@ -35,7 +44,10 @@ type syncStatus struct {
 func newSyncStatus() *syncStatus {
 	return &syncStatus{
 		started: time.Now(),
-		status:  Status{},
+		status: Status{
+			Errors:  make(map[string]error),
+			Flatten: make([]error, 0),
+		},
 	}
 }
 
@@ -48,13 +60,12 @@ func (s *syncStatus) probe(ctx context.Context, pc *probeConfig) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.status.Errors == nil {
-		s.status.Errors = make(map[string]error)
-	}
-
 	s.status.Errors[pc.name] = err
-	s.status.flatten = append(s.status.flatten, err)
 	s.status.Duration = time.Since(s.started)
+
+	if err != nil {
+		s.status.Flatten = append(s.status.Flatten, err)
+	}
 }
 
 func (s *syncStatus) read() Status {
