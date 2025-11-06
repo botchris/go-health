@@ -14,12 +14,13 @@ func TestHealth_RegisterAndStart_Success(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	h := health.NewChecker(50 * time.Millisecond)
+	checker, err := health.NewChecker(health.WithPeriod(50 * time.Millisecond))
+	require.NoError(t, err)
+
 	successChecker := health.ProbeFunc(func(ctx context.Context) error { return nil })
+	checker.AddProbe("success", 50*time.Millisecond, successChecker)
 
-	h.AddProbe("success", 50*time.Millisecond, successChecker)
-
-	for st := range h.Start(ctx) {
+	for st := range checker.Start(ctx) {
 		require.NoError(t, st.AsError())
 		require.NotZero(t, st.Duration)
 	}
@@ -29,12 +30,13 @@ func TestHealth_RegisterAndStart_Failure(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	h := health.NewChecker(50 * time.Millisecond)
+	checker, err := health.NewChecker(health.WithPeriod(50 * time.Millisecond))
+	require.NoError(t, err)
+
 	failChecker := health.ProbeFunc(func(ctx context.Context) error { return errors.New("fail") })
+	checker.AddProbe("fail", 50*time.Millisecond, failChecker)
 
-	h.AddProbe("fail", 50*time.Millisecond, failChecker)
-
-	for st := range h.Start(ctx) {
+	for st := range checker.Start(ctx) {
 		require.Error(t, st.AsError())
 	}
 }
@@ -45,14 +47,41 @@ func TestHealth_MultipleCheckers(t *testing.T) {
 
 	var sentinel = errors.New("sentinel")
 
-	h := health.NewChecker(50 * time.Millisecond)
+	checker, err := health.NewChecker(health.WithPeriod(50 * time.Millisecond))
+	require.NoError(t, err)
+
 	successChecker := health.ProbeFunc(func(ctx context.Context) error { return nil })
 	failChecker := health.ProbeFunc(func(ctx context.Context) error { return sentinel })
 
-	h.AddProbe("success", 50*time.Millisecond, successChecker)
-	h.AddProbe("fail", 50*time.Millisecond, failChecker)
+	checker.AddProbe("success", 50*time.Millisecond, successChecker)
+	checker.AddProbe("fail", 50*time.Millisecond, failChecker)
 
-	for st := range h.Start(ctx) {
+	for st := range checker.Start(ctx) {
 		require.ErrorIs(t, st.AsError(), sentinel)
 	}
+}
+
+func TestHealth_WithInitialDelay(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	delay := 500 * time.Millisecond
+	checker, err := health.NewChecker(
+		health.WithInitialDelay(delay),
+		health.WithPeriod(1*time.Second),
+	)
+	require.NoError(t, err)
+
+	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
+	checker.AddProbe("delayed", 1*time.Second, probe)
+
+	start := time.Now()
+	statusCh := checker.Start(ctx)
+
+	st, ok := <-statusCh
+	require.True(t, ok)
+
+	elapsed := time.Since(start)
+	require.GreaterOrEqual(t, elapsed, delay)
+	require.NoError(t, st.AsError())
 }

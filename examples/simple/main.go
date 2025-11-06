@@ -16,17 +16,20 @@ func main() {
 	defer cancel()
 
 	// 2. Create a new health checker.
-	hc := health.NewChecker(time.Second)
+	checker, err := health.NewChecker(health.WithPeriod(time.Second))
+	if err != nil {
+		panic(err)
+	}
 
 	// 3. AddProbe a simple probe.
-	hc.AddProbe("mysql-db01", time.Second, health.ProbeFunc(func(context.Context) error {
+	checker.AddProbe("mysql-db01", time.Second, health.ProbeFunc(func(context.Context) error {
 		time.Sleep(100 * time.Millisecond) // Simulate a database check
 
 		return nil // return an error if the check fails
 	}))
 
 	// 4. Start the health checker and handle the results.
-	for status := range hc.Start(ctx) {
+	for status := range checker.Start(ctx) {
 		if err := status.AsError(); err != nil {
 			fmt.Printf("Check failed: %s\n", err)
 		} else {
