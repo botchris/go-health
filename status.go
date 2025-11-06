@@ -54,7 +54,7 @@ func (s *syncStatus) probe(ctx context.Context, pc *probeConfig) {
 
 	s.status.Errors[pc.name] = err
 	s.status.flatten = append(s.status.flatten, err)
-	s.status.Duration += time.Since(s.started)
+	s.status.Duration = time.Since(s.started)
 }
 
 func (s *syncStatus) read() Status {
