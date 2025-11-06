@@ -4,18 +4,22 @@ import (
 	"context"
 
 	"github.com/botchris/go-health"
-	ghealth "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
+// HealthServer is an interface representing the gRPC health server's SetServingStatus method.
+type HealthServer interface {
+	SetServingStatus(service string, status healthpb.HealthCheckResponse_ServingStatus)
+}
+
 type proto struct {
 	service string
-	server  *ghealth.Server
+	server  HealthServer
 }
 
 // New creates a new reporter that reports health status to the gRPC health server
 // under the given service name.
-func New(serviceName string, server *ghealth.Server) health.Reporter {
+func New(serviceName string, server HealthServer) health.Reporter {
 	return &proto{
 		service: serviceName,
 		server:  server,
