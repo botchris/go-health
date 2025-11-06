@@ -18,7 +18,7 @@ func TestHealth_RegisterAndStart_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	successChecker := health.ProbeFunc(func(ctx context.Context) error { return nil })
-	checker.AddProbe("success", successChecker, health.WithProbeTimeout(50*time.Millisecond))
+	checker.AddProbe("success", 50*time.Millisecond, successChecker)
 
 	for st := range checker.Start(ctx) {
 		require.NoError(t, st.AsError())
@@ -34,7 +34,7 @@ func TestHealth_RegisterAndStart_Failure(t *testing.T) {
 	require.NoError(t, err)
 
 	failChecker := health.ProbeFunc(func(ctx context.Context) error { return errors.New("fail") })
-	checker.AddProbe("fail", failChecker, health.WithProbeTimeout(50*time.Millisecond))
+	checker.AddProbe("fail", 50*time.Millisecond, failChecker)
 
 	for st := range checker.Start(ctx) {
 		require.Error(t, st.AsError())
@@ -53,10 +53,35 @@ func TestHealth_MultipleCheckers(t *testing.T) {
 	successChecker := health.ProbeFunc(func(ctx context.Context) error { return nil })
 	failChecker := health.ProbeFunc(func(ctx context.Context) error { return sentinel })
 
-	checker.AddProbe("success", successChecker, health.WithProbeTimeout(50*time.Millisecond))
-	checker.AddProbe("fail", failChecker, health.WithProbeTimeout(50*time.Millisecond))
+	checker.AddProbe("success", 50*time.Millisecond, successChecker)
+	checker.AddProbe("fail", 50*time.Millisecond, failChecker)
 
 	for st := range checker.Start(ctx) {
 		require.ErrorIs(t, st.AsError(), sentinel)
 	}
+}
+
+func TestHealth_WithInitialDelay(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	delay := 500 * time.Millisecond
+	checker, err := health.NewChecker(
+		health.WithInitialDelay(delay),
+		health.WithPeriod(1*time.Second),
+	)
+	require.NoError(t, err)
+
+	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
+	checker.AddProbe("delayed", 1*time.Second, probe)
+
+	start := time.Now()
+	statusCh := checker.Start(ctx)
+
+	st, ok := <-statusCh
+	require.True(t, ok)
+
+	elapsed := time.Since(start)
+	require.GreaterOrEqual(t, elapsed, delay)
+	require.NoError(t, st.AsError())
 }

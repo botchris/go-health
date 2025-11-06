@@ -60,11 +60,11 @@ func main() {
 	}
 
 	// 3. AddProbe a simple probe.
-	checker.AddProbe("mysql-db01", health.ProbeFunc(func(context.Context) error {
+	checker.AddProbe("mysql-db01", time.Second, health.ProbeFunc(func(context.Context) error {
 		time.Sleep(100 * time.Millisecond) // Simulate a database check
 
 		return nil // return an error if the check fails
-	}), health.WithProbeTimeout(time.Second))
+	}))
 
 	// 4. Start the health checker and handle the results.
 	for status := range checker.Start(ctx) {

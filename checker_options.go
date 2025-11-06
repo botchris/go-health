@@ -6,13 +6,17 @@ import "time"
 type CheckerOption func(*checkerOptions) error
 
 type checkerOptions struct {
-	initialDelay time.Duration
-	period       time.Duration
+	initialDelay     time.Duration
+	period           time.Duration
+	successThreshold int
+	failureThreshold int
 }
 
 var defaultCheckerOptions = checkerOptions{
-	initialDelay: 0,
-	period:       10 * time.Second,
+	initialDelay:     0,
+	period:           10 * time.Second,
+	successThreshold: 1,
+	failureThreshold: 3,
 }
 
 // WithInitialDelay sets an initial delay before the first health check is performed

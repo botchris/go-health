@@ -39,11 +39,11 @@ func newSyncStatus() *syncStatus {
 	}
 }
 
-func (s *syncStatus) probe(ctx context.Context, p *probeConfig) {
-	probeCtx, cancel := context.WithTimeout(ctx, p.opts.timeout)
+func (s *syncStatus) probe(ctx context.Context, pc *probeConfig) {
+	probeCtx, cancel := context.WithTimeout(ctx, pc.timeout)
 	defer cancel()
 
-	err := p.probe.Check(probeCtx)
+	err := pc.probe.Check(probeCtx)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -52,7 +52,7 @@ func (s *syncStatus) probe(ctx context.Context, p *probeConfig) {
 		s.status.Errors = make(map[string]error)
 	}
 
-	s.status.Errors[p.name] = err
+	s.status.Errors[pc.name] = err
 	s.status.flatten = append(s.status.flatten, err)
 	s.status.Duration += time.Since(s.started)
 }
