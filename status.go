@@ -25,12 +25,12 @@ func (s *Status) AsError() error {
 	return errors.Join(s.flatten...)
 }
 
-type synStatus struct {
+type syncStatus struct {
 	status Status
 	mu     sync.Mutex
 }
 
-func (s *synStatus) addError(checkerName string, err error) {
+func (s *syncStatus) addError(checkerName string, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

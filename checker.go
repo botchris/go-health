@@ -2,42 +2,41 @@ package health
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
+
+	"github.com/cenkalti/backoff/v4"
 )
 
 // Checker manages and performs periodic health checks using registered checkers.
 type Checker struct {
-	checkers  map[string]probeConfig
-	reporters []Reporter
 	period    time.Duration
-	mu        sync.Mutex
+	checkers  map[string]*probeConfig
+	reporters []Reporter
+	mu        sync.RWMutex
 }
 
 type probeConfig struct {
 	name    string
 	timeout time.Duration
-	checker Probe
+	probe   Probe
 }
 
 // NewChecker creates a new Checker instance with the specified checking period.
 // The period defines how often health checks are performed. And it must be
 // at least 1 second.
 func NewChecker(period time.Duration) *Checker {
-	if period < time.Second {
-		period = time.Second
-	}
-
 	return &Checker{
-		checkers:  make(map[string]probeConfig),
-		reporters: make([]Reporter, 0),
 		period:    period,
+		checkers:  make(map[string]*probeConfig),
+		reporters: make([]Reporter, 0),
 	}
 }
 
 // Start initiates the health checking process in the background
 // until the provided context is canceled. It returns a channel
-// that emits Status objects at each checking interval.
+// that emits Summary objects at each checking interval.
 func (h *Checker) Start(ctx context.Context) <-chan Status {
 	ticker := time.NewTicker(h.period)
 	statusChan := make(chan Status)
@@ -53,26 +52,21 @@ func (h *Checker) Start(ctx context.Context) <-chan Status {
 				return
 			case <-ticker.C:
 				started := time.Now()
-				st := &synStatus{status: Status{}}
+				st := &syncStatus{status: Status{}}
 				wg := sync.WaitGroup{}
+				checkers := h.getCheckers()
 
-				{
-					h.mu.Lock()
+				for i := range checkers {
+					wg.Add(1)
 
-					for i := range h.checkers {
-						wg.Add(1)
+					go func(config *probeConfig) {
+						defer wg.Done()
 
-						go func(config probeConfig) {
-							defer wg.Done()
+						probeCtx, cancel := context.WithTimeout(ctx, config.timeout)
+						defer cancel()
 
-							checkCtx, cancel := context.WithTimeout(ctx, config.timeout)
-							defer cancel()
-
-							st.addError(config.name, config.checker.Check(checkCtx))
-						}(h.checkers[i])
-					}
-
-					h.mu.Unlock()
+						st.addError(config.name, config.probe.Check(probeCtx))
+					}(checkers[i])
 				}
 
 				wg.Wait()
@@ -85,6 +79,8 @@ func (h *Checker) Start(ctx context.Context) <-chan Status {
 		}
 	}()
 
+	go h.startReporting(ctx, statusChan)
+
 	return statusChan
 }
 
@@ -94,10 +90,10 @@ func (h *Checker) AddProbe(name string, timeout time.Duration, checker Probe) *C
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.checkers[name] = probeConfig{
+	h.checkers[name] = &probeConfig{
 		name:    name,
 		timeout: timeout,
-		checker: checker,
+		probe:   checker,
 	}
 
 	return h
@@ -111,4 +107,67 @@ func (h *Checker) AddReporter(reporter Reporter) *Checker {
 	h.reporters = append(h.reporters, reporter)
 
 	return h
+}
+
+func (h *Checker) startReporting(ctx context.Context, statusChan <-chan Status) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case status, ok := <-statusChan:
+			if !ok {
+				return
+			}
+
+			reporters := h.getReporters()
+			wg := sync.WaitGroup{}
+
+			for _, reporter := range reporters {
+				wg.Add(1)
+
+				go func(r Reporter) {
+					defer wg.Done()
+
+					rErr := backoff.Retry(
+						func() error { return r.Report(ctx, status) },
+						backoff.WithContext(
+							backoff.NewExponentialBackOff(
+								backoff.WithRetryStopDuration(30*time.Second),
+							),
+							ctx,
+						),
+					)
+
+					if rErr != nil {
+						log.Printf("health checker: reporter %T failed to report status: %s", r, rErr)
+					}
+
+				}(reporter)
+			}
+
+			wg.Wait()
+		}
+	}
+}
+
+func (h *Checker) getCheckers() []*probeConfig {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	checkers := make([]*probeConfig, 0, len(h.checkers))
+	for _, config := range h.checkers {
+		checkers = append(checkers, config)
+	}
+
+	return checkers
+}
+
+func (h *Checker) getReporters() []Reporter {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	reporters := make([]Reporter, len(h.reporters))
+	copy(reporters, h.reporters)
+
+	return reporters
 }
