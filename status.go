@@ -1,6 +1,7 @@
 package health
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -26,11 +27,24 @@ func (s *Status) AsError() error {
 }
 
 type syncStatus struct {
-	status Status
-	mu     sync.Mutex
+	started time.Time
+	status  Status
+	mu      sync.RWMutex
 }
 
-func (s *syncStatus) addError(checkerName string, err error) {
+func newSyncStatus() *syncStatus {
+	return &syncStatus{
+		started: time.Now(),
+		status:  Status{},
+	}
+}
+
+func (s *syncStatus) probe(ctx context.Context, p *probeConfig) {
+	probeCtx, cancel := context.WithTimeout(ctx, p.timeout)
+	defer cancel()
+
+	err := p.probe.Check(probeCtx)
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -38,6 +52,14 @@ func (s *syncStatus) addError(checkerName string, err error) {
 		s.status.Errors = make(map[string]error)
 	}
 
-	s.status.Errors[checkerName] = err
+	s.status.Errors[p.name] = err
 	s.status.flatten = append(s.status.flatten, err)
+	s.status.Duration += time.Since(s.started)
+}
+
+func (s *syncStatus) read() Status {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.status
 }

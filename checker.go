@@ -51,8 +51,7 @@ func (h *Checker) Start(ctx context.Context) <-chan Status {
 
 				return
 			case <-ticker.C:
-				started := time.Now()
-				st := &syncStatus{status: Status{}}
+				st := newSyncStatus()
 				wg := sync.WaitGroup{}
 				checkers := h.getCheckers()
 
@@ -62,19 +61,13 @@ func (h *Checker) Start(ctx context.Context) <-chan Status {
 					go func(config *probeConfig) {
 						defer wg.Done()
 
-						probeCtx, cancel := context.WithTimeout(ctx, config.timeout)
-						defer cancel()
-
-						st.addError(config.name, config.probe.Check(probeCtx))
+						st.probe(ctx, config)
 					}(checkers[i])
 				}
 
 				wg.Wait()
 
-				result := &st.status
-				result.Duration = time.Since(started)
-
-				statusChan <- *result
+				statusChan <- st.read()
 			}
 		}
 	}()
