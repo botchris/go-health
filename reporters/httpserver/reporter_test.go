@@ -40,7 +40,12 @@ func TestHTTPReporter_HealthyStatus(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	status := (health.Status{}).Append("db", nil).Append("cache", nil)
+	status := health.Status{
+		Errors: map[string]error{
+			"db":    nil,
+			"cache": nil,
+		},
+	}
 	require.NoError(t, reporter.Report(ctx, status))
 
 	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+addr+"/healthz", nil)
@@ -65,9 +70,16 @@ func TestHTTPReporter_UnhealthyStatus(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	status := (health.Status{}).
-		Append("db", errors.New("connection refused")).
-		Append("cache", errors.New("connection timeout"))
+	status := health.Status{
+		Errors: map[string]error{
+			"db":    errors.New("connection refused"),
+			"cache": errors.New("connection timeout"),
+		},
+		Flatten: []error{
+			errors.New("connection refused"),
+			errors.New("connection timeout"),
+		},
+	}
 
 	require.NoError(t, reporter.Report(ctx, status))
 
