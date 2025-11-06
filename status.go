@@ -3,6 +3,7 @@ package health
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -15,15 +16,32 @@ type Status struct {
 	flatten  []error
 }
 
+// Append adds a new error for the given probe name to the Status.
+func (s Status) Append(probeName string, err error) Status {
+	if s.Errors == nil {
+		s.Errors = make(map[string]error)
+	}
+
+	s.Errors[probeName] = err
+
+	if err != nil {
+		s.flatten = append(s.flatten, err)
+	}
+
+	return s
+}
+
 // AsError aggregates all errors in the Status and returns them
 // as a single error using errors.Join. If there are no errors,
 // it returns nil.
-func (s *Status) AsError() error {
+func (s Status) AsError() error {
 	if len(s.flatten) == 0 {
 		return nil
 	}
 
-	return errors.Join(s.flatten...)
+	combined := errors.Join(s.flatten...)
+
+	return fmt.Errorf("health check failed with %d errors: %w", len(s.Errors), combined)
 }
 
 type syncStatus struct {
@@ -35,7 +53,9 @@ type syncStatus struct {
 func newSyncStatus() *syncStatus {
 	return &syncStatus{
 		started: time.Now(),
-		status:  Status{},
+		status: Status{
+			Errors: make(map[string]error),
+		},
 	}
 }
 
@@ -48,13 +68,9 @@ func (s *syncStatus) probe(ctx context.Context, pc *probeConfig) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.status.Errors == nil {
-		s.status.Errors = make(map[string]error)
-	}
-
-	s.status.Errors[pc.name] = err
-	s.status.flatten = append(s.status.flatten, err)
 	s.status.Duration = time.Since(s.started)
+
+	s.status.Append(pc.name, err)
 }
 
 func (s *syncStatus) read() Status {

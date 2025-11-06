@@ -13,11 +13,12 @@ import (
 )
 
 type httpReporter struct {
-	addr   string
-	path   string
-	mu     sync.RWMutex
+	addr string
+	path string
+
 	last   health.Status
 	server *http.Server
+	mu     sync.RWMutex
 }
 
 // New creates a new HTTP health reporter. By default, it listens on ":8081" and serves health status
@@ -90,5 +91,19 @@ func (r *httpReporter) handleHealth(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(stCode)
 	w.Header().Set("Content-Type", "application/json")
 
-	_ = json.NewEncoder(w).Encode(status)
+	report := map[string]string{}
+
+	for name, err := range status.Errors {
+		s := "ok"
+		if err != nil {
+			s = err.Error()
+		}
+
+		report[name] = s
+	}
+
+	if err := json.NewEncoder(w).Encode(report); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("httpReporter handleHealth encode error: %v", err)
+	}
 }
