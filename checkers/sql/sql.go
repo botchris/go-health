@@ -16,7 +16,7 @@ type sqlChecker struct {
 
 // New creates a new SQL checker that uses the provided DSN to connect
 // to the database. Supported drivers are "mysql" and "postgres".
-func New(dsn string, o ...Option) (health.Checker, error) {
+func New(dsn string, o ...Option) (health.Probe, error) {
 	opts := &options{
 		dsn:    dsn,
 		driver: "mysql",

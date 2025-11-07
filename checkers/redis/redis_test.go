@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis"
-	"github.com/botchris/go-health/checker/redis"
+	"github.com/botchris/go-health/checkers/redis"
 	"github.com/stretchr/testify/require"
 )
 
