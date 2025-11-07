@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamt "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-	dynamodbc "github.com/botchris/go-health/checkers/dynamodb"
+	dynamodbc "github.com/botchris/go-health/probes/dynamodb"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/botchris/go-health/checkers/sql"
+	"github.com/botchris/go-health/probes/sql"
 	"github.com/stretchr/testify/require"
 )
 
