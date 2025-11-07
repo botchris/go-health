@@ -31,7 +31,7 @@ func TestDynamoProbe_Check_Success(t *testing.T) {
 		},
 	}
 
-	probe, err := dynamodbc.New(client, "test")
+	probe, err := dynamodbc.New("test", dynamodbc.WithClient(client))
 	assert.NoError(t, err)
 	assert.NoError(t, probe.Check(ctx))
 }
@@ -51,7 +51,7 @@ func TestDynamoProbe_Check_TableNotActive(t *testing.T) {
 		},
 	}
 
-	probe, err := dynamodbc.New(client, "test")
+	probe, err := dynamodbc.New("test", dynamodbc.WithClient(client))
 	assert.NoError(t, err)
 
 	err = probe.Check(ctx)
@@ -69,7 +69,7 @@ func TestDynamoProbe_Check_DescribeTableError(t *testing.T) {
 		},
 	}
 
-	probe, err := dynamodbc.New(client, "test")
+	probe, err := dynamodbc.New("test", dynamodbc.WithClient(client))
 	assert.NoError(t, err)
 
 	err = probe.Check(ctx)
@@ -98,7 +98,7 @@ func TestDynamoProbe_Check_GlobalSecondaryIndexNotActive(t *testing.T) {
 		},
 	}
 
-	probe, err := dynamodbc.New(client, "test")
+	probe, err := dynamodbc.New("test", dynamodbc.WithClient(client))
 	assert.NoError(t, err)
 
 	err = probe.Check(ctx)
@@ -149,7 +149,7 @@ func TestDynamoProbe_Check_Permissions_AllAllowed(t *testing.T) {
 		Delete:     true,
 	}
 
-	probe, err := dynamodbc.New(client, "test", dynamodbc.WithPermissionsCheck(perm))
+	probe, err := dynamodbc.New("test", dynamodbc.WithClient(client), dynamodbc.WithPermissionsCheck(perm))
 	assert.NoError(t, err)
 	assert.NoError(t, probe.Check(ctx))
 }
@@ -192,7 +192,7 @@ func TestDynamoProbe_Check_Permissions_Denied(t *testing.T) {
 		Put: true,
 	}
 
-	probe, err := dynamodbc.New(client, "test", dynamodbc.WithPermissionsCheck(perm))
+	probe, err := dynamodbc.New("test", dynamodbc.WithClient(client), dynamodbc.WithPermissionsCheck(perm))
 	assert.NoError(t, err)
 
 	err = probe.Check(ctx)
@@ -233,7 +233,7 @@ func TestDynamoProbe_Check_Permissions_SimulateError(t *testing.T) {
 		Get: true,
 	}
 
-	probe, err := dynamodbc.New(client, "test", dynamodbc.WithPermissionsCheck(perm))
+	probe, err := dynamodbc.New("test", dynamodbc.WithClient(client), dynamodbc.WithPermissionsCheck(perm))
 	assert.NoError(t, err)
 
 	err = probe.Check(ctx)
@@ -274,7 +274,7 @@ func TestDynamoProbe_Check_Permissions_STSError(t *testing.T) {
 		Get: true,
 	}
 
-	probe, err := dynamodbc.New(client, "test", dynamodbc.WithPermissionsCheck(perm))
+	probe, err := dynamodbc.New("test", dynamodbc.WithClient(client), dynamodbc.WithPermissionsCheck(perm))
 	assert.NoError(t, err)
 
 	err = probe.Check(ctx)

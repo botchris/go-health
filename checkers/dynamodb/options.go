@@ -12,6 +12,12 @@ import (
 // Option is a function that configures options for the DynamoDB checker.
 type Option func(*options) error
 
+type options struct {
+	client      Client
+	table       string
+	permissions *PermissionsCheck
+}
+
 type PermissionsCheck struct {
 	IAM IAMClient
 	STS STSClient
@@ -25,10 +31,14 @@ type PermissionsCheck struct {
 	Delete     bool
 }
 
-type options struct {
-	client      Client
-	table       string
-	permissions *PermissionsCheck
+// WithClient configures the checker to use the provided DynamoDB client.
+// Otherwise, a default client will be created using the default AWS configuration.
+func WithClient(c Client) Option {
+	return func(o *options) error {
+		o.client = c
+
+		return nil
+	}
 }
 
 // WithPermissionsCheck configures the checker to perform permissions checks

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	dynamot "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -25,16 +26,10 @@ type dynamoProbe struct {
 // permissions to perform the `dynamodb:DescribeTable` operation.
 // Additional permissions can be checked by providing a PermissionsCheck
 // option.
-func New(client Client, tableName string, o ...Option) (health.Probe, error) {
-	opts := &options{
-		client: client,
-		table:  tableName,
-	}
-
-	for i := range o {
-		if err := o[i](opts); err != nil {
-			return nil, fmt.Errorf("dynamodb: applying option %d failed: %w", i, err)
-		}
+func New(tableName string, o ...Option) (health.Probe, error) {
+	opts, err := prepareOptions(tableName, o...)
+	if err != nil {
+		return nil, fmt.Errorf("dynamodb probe: preparing options failed: %w", err)
 	}
 
 	return &dynamoProbe{opts: opts}, nil
@@ -130,4 +125,25 @@ func (c *dynamoProbe) checkDynamoPermissions(ctx context.Context, tableARN strin
 	}
 
 	return nil
+}
+
+func prepareOptions(tableName string, o ...Option) (*options, error) {
+	opts := &options{table: tableName}
+
+	for i := range o {
+		if err := o[i](opts); err != nil {
+			return nil, fmt.Errorf("dynamodb: applying option %d failed: %w", i, err)
+		}
+	}
+
+	if opts.client == nil {
+		cfg, err := config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			return nil, fmt.Errorf("dynamodb: unable to load AWS config: %w", err)
+		}
+
+		opts.client = dynamodb.NewFromConfig(cfg)
+	}
+
+	return opts, nil
 }
