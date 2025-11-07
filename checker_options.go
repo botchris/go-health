@@ -11,6 +11,7 @@ type checkerOptions struct {
 	successThreshold int
 	failureThreshold int
 	reporterTimeout  time.Duration
+	bufferSize       int
 }
 
 var defaultCheckerOptions = checkerOptions{
@@ -19,6 +20,7 @@ var defaultCheckerOptions = checkerOptions{
 	successThreshold: 1,
 	failureThreshold: 3,
 	reporterTimeout:  30 * time.Second,
+	bufferSize:       10,
 }
 
 // WithInitialDelay sets an initial delay before the first health check is performed
@@ -97,6 +99,21 @@ func WithReporterTimeout(d time.Duration) CheckerOption {
 		}
 
 		o.reporterTimeout = d
+
+		return nil
+	}
+}
+
+// WithBufferSize sets the buffer size for watcher channels.
+// The buffer size must be at least 1. If a value less than 1
+// is provided, it defaults to 1.
+func WithBufferSize(size int) CheckerOption {
+	return func(o *checkerOptions) error {
+		if size < 1 {
+			size = 1
+		}
+
+		o.bufferSize = size
 
 		return nil
 	}

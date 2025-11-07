@@ -98,7 +98,7 @@ func (ch *Checker) AddReporter(reporter Reporter) *Checker {
 // based on the configured success and failure thresholds.
 // Make sure to start the Checker before calling Watch.
 func (ch *Checker) Watch() <-chan Status {
-	watcher := make(chan Status, 1)
+	watcher := make(chan Status, ch.opts.bufferSize)
 
 	ch.watchersMu.Lock()
 	ch.watchers = append(ch.watchers, watcher)
