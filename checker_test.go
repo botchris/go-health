@@ -155,3 +155,46 @@ func TestHealth_WithFailureThreshold(t *testing.T) {
 	assert.EqualValues(t, 2, probeCalls.Load())
 	assert.Equal(t, 1, seenStatuses)
 }
+
+func TestHealth_Watch_EmitsStatusChanges(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	checker, err := health.NewChecker(health.WithPeriod(50 * time.Millisecond))
+	require.NoError(t, err)
+
+	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
+	checker.AddProbe("watch", 50*time.Millisecond, probe)
+
+	statusCh := checker.Start(ctx)
+	watchCh := checker.Watch()
+	assert.Equal(t, statusCh, watchCh)
+
+	select {
+	case st, ok := <-watchCh:
+		require.True(t, ok)
+		require.NoError(t, st.AsError())
+	case <-ctx.Done():
+		t.Fatal("did not receive status update from Watch channel")
+	}
+}
+
+func TestHealth_Watch_ClosedOnContextCancel(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	checker, err := health.NewChecker(health.WithPeriod(50 * time.Millisecond))
+	require.NoError(t, err)
+
+	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
+	checker.AddProbe("watch-cancel", 50*time.Millisecond, probe)
+
+	watchCh := checker.Watch()
+	checker.Start(ctx)
+
+	// Wait for context to be canceled and channel to close
+	<-ctx.Done()
+
+	_, ok := <-watchCh
+	assert.False(t, ok, "Watch channel should be closed after context cancel")
+}
