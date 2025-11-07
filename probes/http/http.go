@@ -11,11 +11,11 @@ import (
 	"github.com/botchris/go-health"
 )
 
-type httpChecker struct {
+type httpProbe struct {
 	opts *options
 }
 
-// New creates a new HTTPChecker based on the provided configuration.
+// New creates a new HTTP Probe based on the provided configuration.
 func New(url string, o ...Option) (health.Probe, error) {
 	opts := &options{
 		method:     http.MethodGet,
@@ -31,11 +31,11 @@ func New(url string, o ...Option) (health.Probe, error) {
 		}
 	}
 
-	return &httpChecker{opts: opts}, nil
+	return &httpProbe{opts: opts}, nil
 }
 
 // Check performs the HTTP health check based on the configuration.
-func (h *httpChecker) Check(ctx context.Context) error {
+func (h *httpProbe) Check(ctx context.Context) error {
 	resp, err := h.do(ctx)
 	if err != nil {
 		return err
@@ -63,7 +63,7 @@ func (h *httpChecker) Check(ctx context.Context) error {
 	return nil
 }
 
-func (h *httpChecker) do(ctx context.Context) (*http.Response, error) {
+func (h *httpProbe) do(ctx context.Context) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, h.opts.method, h.opts.url.String(), bytes.NewReader(h.opts.payload))
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to create HTTP request", err)

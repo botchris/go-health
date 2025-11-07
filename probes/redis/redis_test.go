@@ -4,23 +4,25 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis"
-	"github.com/botchris/go-health/checkers/redis"
+	"github.com/botchris/go-health/probes/redis"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRedis_Success(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	srv, err := miniredis.Run()
 	require.NoError(t, err)
 	defer srv.Close()
 
 	dsn := fmt.Sprintf("redis://%s", srv.Addr())
-	checker, err := redis.New(dsn)
+	probe, err := redis.New(dsn)
 	require.NoError(t, err)
-
-	err = checker.Check(context.Background())
-	require.NoError(t, err)
+	require.NoError(t, probe.Check(ctx))
 }
 
 func TestRedis_InvalidDSN(t *testing.T) {
@@ -29,15 +31,20 @@ func TestRedis_InvalidDSN(t *testing.T) {
 }
 
 func TestRedis_InvalidServer(t *testing.T) {
-	dsn := "redis://localhost:63999"
-	checker, err := redis.New(dsn)
-	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	err = checker.Check(context.Background())
-	require.Error(t, err)
+	dsn := "redis://localhost:63999"
+
+	probe, err := redis.New(dsn)
+	require.NoError(t, err)
+	require.Error(t, probe.Check(ctx))
 }
 
 func TestRedis_SetCheck_Success(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	srv, err := miniredis.Run()
 	require.NoError(t, err)
 	defer srv.Close()
@@ -48,11 +55,10 @@ func TestRedis_SetCheck_Success(t *testing.T) {
 		Value:      "ok",
 		Expiration: 0,
 	})
-	checker, err := redis.New(dsn, setOpt)
-	require.NoError(t, err)
 
-	err = checker.Check(context.Background())
+	probe, err := redis.New(dsn, setOpt)
 	require.NoError(t, err)
+	require.NoError(t, probe.Check(ctx))
 
 	found, gErr := srv.Get("health:set")
 	require.NoError(t, gErr)
@@ -60,6 +66,9 @@ func TestRedis_SetCheck_Success(t *testing.T) {
 }
 
 func TestRedis_GetCheck_Success(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	srv, err := miniredis.Run()
 	require.NoError(t, err)
 
@@ -72,14 +81,16 @@ func TestRedis_GetCheck_Success(t *testing.T) {
 		Key:           "health:get",
 		ExpectedValue: "expected",
 	})
-	checker, err := redis.New(dsn, getOpt)
-	require.NoError(t, err)
 
-	err = checker.Check(context.Background())
+	probe, err := redis.New(dsn, getOpt)
 	require.NoError(t, err)
+	require.NoError(t, probe.Check(ctx))
 }
 
 func TestRedis_GetCheck_MissingKey_Error(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	srv, err := miniredis.Run()
 	require.NoError(t, err)
 	defer srv.Close()
@@ -88,15 +99,19 @@ func TestRedis_GetCheck_MissingKey_Error(t *testing.T) {
 	getOpt := redis.WithGetChecker(redis.GetCheck{
 		Key: "missing:key",
 	})
-	checker, err := redis.New(dsn, getOpt)
+
+	probe, err := redis.New(dsn, getOpt)
 	require.NoError(t, err)
 
-	err = checker.Check(context.Background())
+	err = probe.Check(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "does not exist")
 }
 
 func TestRedis_GetCheck_MissingKey_NoError(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	srv, err := miniredis.Run()
 	require.NoError(t, err)
 
@@ -107,14 +122,16 @@ func TestRedis_GetCheck_MissingKey_NoError(t *testing.T) {
 		Key:                 "missing:key",
 		NoErrorOnMissingKey: true,
 	})
-	checker, err := redis.New(dsn, getOpt)
-	require.NoError(t, err)
 
-	err = checker.Check(context.Background())
+	probe, err := redis.New(dsn, getOpt)
 	require.NoError(t, err)
+	require.NoError(t, probe.Check(ctx))
 }
 
 func TestRedis_GetCheck_UnexpectedValue(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	srv, err := miniredis.Run()
 	require.NoError(t, err)
 	defer srv.Close()
@@ -126,10 +143,11 @@ func TestRedis_GetCheck_UnexpectedValue(t *testing.T) {
 		Key:           "health:get",
 		ExpectedValue: "expected",
 	})
-	checker, err := redis.New(dsn, getOpt)
+
+	probe, err := redis.New(dsn, getOpt)
 	require.NoError(t, err)
 
-	err = checker.Check(context.Background())
+	err = probe.Check(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unexpected value")
 }

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/botchris/go-health/checkers/http"
+	"github.com/botchris/go-health/probes/http"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,15 +25,14 @@ func TestHTTPChecker_Success(t *testing.T) {
 
 	defer srv.Close()
 
-	c, err := http.New(
+	probe, err := http.New(
 		srv.URL,
 		http.WithExpectContains(`{"status":"ok"}`),
 		http.WithClient(srv.Client()),
 	)
-	require.NoError(t, err)
 
-	err = c.Check(ctx)
 	require.NoError(t, err)
+	require.NoError(t, probe.Check(ctx))
 }
 
 func TestHTTPChecker_StatusCodeMismatch(t *testing.T) {
@@ -46,10 +45,10 @@ func TestHTTPChecker_StatusCodeMismatch(t *testing.T) {
 
 	defer srv.Close()
 
-	c, err := http.New(srv.URL, http.WithClient(srv.Client()))
+	probe, err := http.New(srv.URL, http.WithClient(srv.Client()))
 	require.NoError(t, err)
 
-	err = c.Check(ctx)
+	err = probe.Check(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "expected status code")
 }
@@ -68,14 +67,14 @@ func TestHTTPChecker_ExpectStringNotFound(t *testing.T) {
 
 	defer srv.Close()
 
-	c, err := http.New(
+	probe, err := http.New(
 		srv.URL,
 		http.WithExpectContains("missing-string"),
 		http.WithClient(srv.Client()),
 	)
 	require.NoError(t, err)
 
-	err = c.Check(ctx)
+	err = probe.Check(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "expected string")
 }

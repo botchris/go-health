@@ -32,7 +32,7 @@ type options struct {
 	expectContains string
 
 	// client is the HTTP client to use for making requests. If not provided,
-	// the default http.Client will be used.
+	// the default http.client will be used.
 	client *http.Client
 }
 

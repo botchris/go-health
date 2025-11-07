@@ -22,6 +22,33 @@ the `ProbeFunc` type, which allows you to define a probe using a function.
 
 Probes are expected to return an error if the check fails, or `nil` if the check passes.
 
+### Built-in Probes
+
+- **DynamoDB**: A probe that checks the health of an AWS DynamoDB table.
+- **HTTP**: A probe that performs an HTTP request to a specified URL and checks the response status code.
+- **SQL**: A probe that pings a SQL database to check its availability.
+- **Redis**: A probe that pings a Redis server to check its availability, and optionally checks for a specific keys.
+
+### Building Custom Probes
+
+You can create custom probes by implementing the `Probe` interface. Here's an example of a simple custom probe:
+
+```go
+package custom
+
+import "context"
+
+type CustomProbe struct {
+    // Add any fields you need for your probe.
+}   
+
+func (p *CustomProbe) Check(context.Context) error {
+    // Implement your custom health check logic here.
+    return nil // return an error if the check fails.
+}
+
+```
+
 ### Checker
 
 A Checker is responsible for managing and executing probes at specified intervals. You can register multiple probes

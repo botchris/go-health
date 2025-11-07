@@ -163,7 +163,7 @@ func (ch *Checker) startReporting(ctx context.Context, statusChan <-chan Status)
 		select {
 		case <-ctx.Done():
 			return
-		case status, ok := <-statusChan:
+		case st, ok := <-statusChan:
 			if !ok {
 				return
 			}
@@ -178,7 +178,7 @@ func (ch *Checker) startReporting(ctx context.Context, statusChan <-chan Status)
 					defer wg.Done()
 
 					rErr := backoff.Retry(
-						func() error { return r.Report(ctx, status) },
+						func() error { return r.Report(ctx, st) },
 						backoff.WithContext(
 							backoff.NewExponentialBackOff(
 								backoff.WithMaxElapsedTime(ch.opts.reporterTimeout),

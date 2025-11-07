@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/botchris/go-health/checkers/sql"
+	"github.com/botchris/go-health/probes/sql"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,24 +33,15 @@ func TestCheck_MySQLMockSuccess(t *testing.T) {
 		)
 	mock.ExpectClose()
 
-	checker, err := sql.New("mock-dsn",
+	probe, err := sql.New("mock-dsn",
 		sql.WithOpener(func(driverName, dataSourceName string) (*sdksql.DB, error) {
 			return db, nil
 		}),
 	)
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	err = checker.Check(ctx)
-	if err != nil {
-		t.Errorf("expected successful check, got error: %v", err)
-	}
-
-	if eErr := mock.ExpectationsWereMet(); eErr != nil {
-		t.Errorf("unmet sqlmock expectations: %v", eErr)
-	}
+	require.NoError(t, err)
+	require.NoError(t, probe.Check(ctx))
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestCheck_MySQLMockPingError(t *testing.T) {
@@ -68,19 +59,14 @@ func TestCheck_MySQLMockPingError(t *testing.T) {
 
 	mock.ExpectPing().WillReturnError(sqlmock.ErrCancelled)
 
-	checker, err := sql.New("mock-dsn",
+	probe, err := sql.New("mock-dsn",
 		sql.WithOpener(func(driverName, dataSourceName string) (*sdksql.DB, error) {
 			return db, nil
 		}),
 	)
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if cErr := checker.Check(ctx); cErr == nil {
-		t.Error("expected error for ping failure, got nil")
-	}
+	require.NoError(t, err)
+	require.Error(t, probe.Check(ctx))
 }
 
 func TestCheck_MySQLMockQueryError(t *testing.T) {
@@ -99,18 +85,12 @@ func TestCheck_MySQLMockQueryError(t *testing.T) {
 	mock.ExpectPing()
 	mock.ExpectQuery("SELECT 1.*").WillReturnError(sqlmock.ErrCancelled)
 
-	checker, err := sql.New("mock-dsn",
+	probe, err := sql.New("mock-dsn",
 		sql.WithOpener(func(driverName, dataSourceName string) (*sdksql.DB, error) {
 			return db, nil
 		}),
 	)
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	err = checker.Check(ctx)
-	if err == nil {
-		t.Error("expected error for query failure, got nil")
-	}
+	require.NoError(t, err)
+	require.Error(t, probe.Check(ctx))
 }
