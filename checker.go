@@ -47,7 +47,7 @@ func NewChecker(o ...CheckerOption) (*Checker, error) {
 
 // Start initiates the health checking process in the background
 // until the provided context is canceled. It returns a channel
-// that emits Status objects at each checking interval.
+// that emits StatusStruct objects at each checking interval.
 func (ch *Checker) Start(ctx context.Context) <-chan Status {
 	statusChan := make(chan Status)
 
@@ -106,30 +106,32 @@ func (ch *Checker) startChecking(ctx context.Context, statusChan chan<- Status) 
 
 			return
 		case <-ticker.C:
-			ss := newSyncStatus()
+			st := NewStatus()
 			wg := sync.WaitGroup{}
 			checkers := ch.getCheckers()
 
 			for i := range checkers {
 				wg.Add(1)
 
-				go func(config *probeConfig) {
+				go func(pc *probeConfig) {
 					defer wg.Done()
 
-					ss.probe(ctx, config)
+					probeCtx, cancel := context.WithTimeout(ctx, pc.timeout)
+					defer cancel()
+
+					st.Append(pc.name, pc.probe.Check(probeCtx))
 				}(checkers[i])
 			}
 
 			wg.Wait()
-			ch.notifyStatus(ss, statusChan)
+			ch.notifyStatus(st, statusChan)
 		}
 	}
 }
 
-func (ch *Checker) notifyStatus(st *syncStatus, statusChan chan<- Status) {
-	result := st.read()
+func (ch *Checker) notifyStatus(st Status, statusChan chan<- Status) {
 	shouldNotify := false
-	hasFailed := result.AsError() != nil
+	hasFailed := st.AsError() != nil
 
 	if hasFailed {
 		ch.consecutiveFailures++
@@ -150,7 +152,7 @@ func (ch *Checker) notifyStatus(st *syncStatus, statusChan chan<- Status) {
 	}
 
 	if shouldNotify {
-		statusChan <- result
+		statusChan <- st
 	}
 }
 

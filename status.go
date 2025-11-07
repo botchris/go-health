@@ -1,7 +1,6 @@
 package health
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -10,67 +9,99 @@ import (
 
 // Status represents the result of health checks,
 // containing any errors encountered indexed by checker name.
-type Status struct {
-	// Errors maps checker names to their respective errors.
-	// If a checker passed, its error will be nil.
-	Errors map[string]error
+type Status interface {
+	// Append adds a new probe result to the Status.
+	// probeName is the name of the health checker,
+	// err is the error returned by the checker (nil if successful).
+	Append(probeName string, err error) Status
 
-	// Flatten is a slice of all non-nil errors from the health checks.
-	Flatten []error
+	// Errors returns a map of checker names to their respective errors.
+	// A nil error indicates a successful check.
+	Errors() map[string]error
 
-	// Duration indicates the total time taken to perform the health checks.
-	Duration time.Duration
+	// Flatten returns a slice of all non-nil errors from the health checks.
+	Flatten() []error
+
+	// AsError aggregates all errors and returns them as a single error.
+	// If there are no errors, it returns nil.
+	AsError() error
+
+	// Duration returns the total time taken to perform the health checks
+	// and calculate this Status.
+	Duration() time.Duration
 }
 
-// AsError aggregates all errors in the Status and returns them
-// as a single error using errors.Join. If there are no errors,
-// it returns nil.
-func (s Status) AsError() error {
-	if len(s.Flatten) == 0 {
-		return nil
+type status struct {
+	errors   map[string]error
+	flatten  []error
+	duration time.Duration
+	started  time.Time
+	mu       sync.RWMutex
+}
+
+// NewStatus creates and returns a new Status instance.
+// The returned object is thread-safe and can be used concurrently.
+//
+// Optionally, a specific start time can be provided for duration calculation.
+// If no time is provided, the current time is used.
+func NewStatus(now ...time.Time) Status {
+	n := time.Now()
+	if len(now) > 0 {
+		n = now[0]
 	}
 
-	combined := errors.Join(s.Flatten...)
-
-	return fmt.Errorf("health check failed with %d errors: %w", len(s.Errors), combined)
-}
-
-type syncStatus struct {
-	started time.Time
-	status  Status
-	mu      sync.RWMutex
-}
-
-func newSyncStatus() *syncStatus {
-	return &syncStatus{
-		started: time.Now(),
-		status: Status{
-			Errors:  make(map[string]error),
-			Flatten: make([]error, 0),
-		},
+	return &status{
+		errors:  make(map[string]error),
+		flatten: make([]error, 0),
+		started: n,
 	}
 }
 
-func (s *syncStatus) probe(ctx context.Context, pc *probeConfig) {
-	probeCtx, cancel := context.WithTimeout(ctx, pc.timeout)
-	defer cancel()
-
-	err := pc.probe.Check(probeCtx)
-
+func (s *status) Append(probeName string, err error) Status {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.status.Errors[pc.name] = err
-	s.status.Duration = time.Since(s.started)
+	s.errors[probeName] = err
+	s.duration = time.Since(s.started)
 
 	if err != nil {
-		s.status.Flatten = append(s.status.Flatten, err)
+		s.flatten = append(s.flatten, err)
 	}
+
+	return s
 }
 
-func (s *syncStatus) read() Status {
+func (s *status) Errors() map[string]error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.status
+	return s.errors
+}
+
+func (s *status) Flatten() []error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.flatten
+}
+
+func (s *status) Duration() time.Duration {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.duration
+}
+
+// AsError aggregates all errors in the StatusStruct and returns them
+// as a single error using errors.Join. If there are no errors,
+// it returns nil.
+func (s *status) AsError() error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if len(s.flatten) == 0 {
+		return nil
+	}
+
+	return fmt.Errorf("health check failed with %d errors: %w", len(s.flatten), errors.Join(s.flatten...))
 }

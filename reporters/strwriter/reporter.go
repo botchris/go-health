@@ -30,7 +30,7 @@ func (i writer) Report(_ context.Context, status health.Status) error {
 func (i writer) statusToLogLine(status health.Status) string {
 	out := make([]string, 0)
 
-	for check, err := range status.Errors {
+	for check, err := range status.Errors() {
 		right := "ok"
 		if err != nil {
 			right = err.Error()

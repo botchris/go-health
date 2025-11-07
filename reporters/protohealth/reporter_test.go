@@ -32,12 +32,7 @@ func TestProtoHealthReporter_ServingStatus(t *testing.T) {
 	serviceName := "my-service"
 	reporter := protohealth.New(serviceName, mockServer)
 
-	healthyStatus := health.Status{
-		Errors: map[string]error{
-			"db":    nil,
-			"cache": nil,
-		},
-	}
+	healthyStatus := health.NewStatus().Append("db", nil).Append("cache", nil)
 
 	require.NoError(t, reporter.Report(ctx, healthyStatus))
 	require.Equal(t, serviceName, mockServer.service)
@@ -46,17 +41,9 @@ func TestProtoHealthReporter_ServingStatus(t *testing.T) {
 
 	mockServer.calls = 0
 	mockServer.status = 0
-	unhealthy := health.Status{
-		Errors: map[string]error{
-			"db":    nil,
-			"cache": errors.New("fail"),
-		},
-		Flatten: []error{
-			errors.New("fail"),
-		},
-	}
+	unhealthy := health.NewStatus().Append("db", errors.New("connection error")).Append("cache", nil)
 
-	require.NoError(t, reporter.Report(context.Background(), unhealthy))
+	require.NoError(t, reporter.Report(ctx, unhealthy))
 	require.Equal(t, healthpb.HealthCheckResponse_NOT_SERVING, mockServer.status)
 	require.Equal(t, 1, mockServer.calls)
 }

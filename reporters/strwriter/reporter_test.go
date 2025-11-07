@@ -22,15 +22,9 @@ func TestReport_WritesStatusToFile(t *testing.T) {
 
 	f := &fakeFile{buf: &buf}
 	reporter := strwriter.New(f)
+	unhealthy := health.NewStatus().Append("db", errors.New("connection failed")).Append("cache", errors.New("timeout"))
 
-	status := health.Status{
-		Errors: map[string]error{
-			"db":    errors.New("connection failed"),
-			"cache": errors.New("timeout"),
-		},
-	}
-
-	err := reporter.Report(ctx, status)
+	err := reporter.Report(ctx, unhealthy)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -48,14 +42,9 @@ func TestReport_NoErrors(t *testing.T) {
 	f := &fakeFile{buf: &buf}
 
 	reporter := strwriter.New(f)
-	status := health.Status{
-		Errors: map[string]error{
-			"db":    nil,
-			"cache": nil,
-		},
-	}
+	healthy := health.NewStatus().Append("db", nil).Append("cache", nil)
 
-	err := reporter.Report(ctx, status)
+	err := reporter.Report(ctx, healthy)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

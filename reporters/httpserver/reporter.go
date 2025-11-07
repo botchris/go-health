@@ -94,7 +94,7 @@ func (r *httpReporter) handleHealth(w http.ResponseWriter, req *http.Request) {
 
 	report := map[string]string{}
 
-	for name, err := range status.Errors {
+	for name, err := range status.Errors() {
 		s := "ok"
 		if err != nil {
 			s = err.Error()
