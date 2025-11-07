@@ -15,9 +15,10 @@ type Checker struct {
 	consecutiveSuccesses int
 	consecutiveFailures  int
 
-	checkers  map[string]*probeConfig
-	reporters []Reporter
-	mu        sync.RWMutex
+	statusChan chan Status
+	checkers   map[string]*probeConfig
+	reporters  []Reporter
+	mu         sync.RWMutex
 }
 
 type probeConfig struct {
@@ -39,9 +40,10 @@ func NewChecker(o ...CheckerOption) (*Checker, error) {
 	}
 
 	return &Checker{
-		opts:      opts,
-		checkers:  make(map[string]*probeConfig),
-		reporters: make([]Reporter, 0),
+		opts:       opts,
+		statusChan: make(chan Status),
+		checkers:   make(map[string]*probeConfig),
+		reporters:  make([]Reporter, 0),
 	}, nil
 }
 
@@ -49,12 +51,10 @@ func NewChecker(o ...CheckerOption) (*Checker, error) {
 // until the provided context is canceled. It returns a channel
 // that emits StatusStruct objects at each checking interval.
 func (ch *Checker) Start(ctx context.Context) <-chan Status {
-	statusChan := make(chan Status)
+	go ch.startChecking(ctx)
+	go ch.startReporting(ctx)
 
-	go ch.startChecking(ctx, statusChan)
-	go ch.startReporting(ctx, statusChan)
-
-	return statusChan
+	return ch.statusChan
 }
 
 // AddProbe adds a new Probe with the specified name.
@@ -82,17 +82,25 @@ func (ch *Checker) AddReporter(reporter Reporter) *Checker {
 	return ch
 }
 
+// Watch returns a channel that emits Status changes.
+// The channel will receive updates whenever the health status changes
+// based on the configured success and failure thresholds.
+// Make sure to start the Checker before calling Watch.
+func (ch *Checker) Watch() <-chan Status {
+	return ch.statusChan
+}
+
 // startChecking performs health checks at regular intervals
 // defined by the Checker's period. It sends the results to the provided status channel.
 // The function runs until the provided context is canceled.
-func (ch *Checker) startChecking(ctx context.Context, statusChan chan<- Status) {
+func (ch *Checker) startChecking(ctx context.Context) {
 	ticker := time.NewTicker(ch.opts.period)
 	defer ticker.Stop()
 
 	if ch.opts.initialDelay > 0 {
 		select {
 		case <-ctx.Done():
-			close(statusChan)
+			close(ch.statusChan)
 
 			return
 		case <-time.After(ch.opts.initialDelay):
@@ -102,7 +110,7 @@ func (ch *Checker) startChecking(ctx context.Context, statusChan chan<- Status) 
 	for {
 		select {
 		case <-ctx.Done():
-			close(statusChan)
+			close(ch.statusChan)
 
 			return
 		case <-ticker.C:
@@ -124,7 +132,7 @@ func (ch *Checker) startChecking(ctx context.Context, statusChan chan<- Status) 
 			}
 
 			wg.Wait()
-			ch.notifyStatus(st, statusChan)
+			ch.notifyStatus(st, ch.statusChan)
 		}
 	}
 }
@@ -158,12 +166,12 @@ func (ch *Checker) notifyStatus(st Status, statusChan chan<- Status) {
 
 // startReporting listens for status updates and reports them using all registered reporters.
 // It runs until the provided context is canceled or the status channel is closed.
-func (ch *Checker) startReporting(ctx context.Context, statusChan <-chan Status) {
+func (ch *Checker) startReporting(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case st, ok := <-statusChan:
+		case st, ok := <-ch.statusChan:
 			if !ok {
 				return
 			}
