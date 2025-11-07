@@ -22,13 +22,52 @@ type PermissionsCheck struct {
 	IAM IAMClient
 	STS STSClient
 
-	Get        bool
-	BatchGet   bool
-	Query      bool
-	Scan       bool
-	Put        bool
-	BatchWrite bool
-	Delete     bool
+	// Basic operations
+	Get                                 bool
+	BatchGet                            bool
+	Query                               bool
+	Scan                                bool
+	Put                                 bool
+	BatchWrite                          bool
+	Delete                              bool
+	Update                              bool
+	UpdateTable                         bool
+	UpdateItem                          bool
+	CreateTable                         bool
+	DeleteTable                         bool
+	DescribeTable                       bool
+	DescribeStream                      bool
+	ListTables                          bool
+	ListStreams                         bool
+	TagResource                         bool
+	UntagResource                       bool
+	TransactGet                         bool
+	TransactWrite                       bool
+	RestoreTable                        bool
+	ExportTable                         bool
+	ImportTable                         bool
+	DescribeLimits                      bool
+	DescribeBackups                     bool
+	DescribeContinuousBackups           bool
+	DescribeContributorInsights         bool
+	DescribeKinesisStreamingDestination bool
+	DescribeReservedCapacity            bool
+	DescribeReservedCapacityOfferings   bool
+	DescribeTableReplicaAutoScaling     bool
+	DescribeTimeToLive                  bool
+	EnableKinesisStreamingDestination   bool
+	DisableKinesisStreamingDestination  bool
+	EnableReplication                   bool
+	DisableReplication                  bool
+	RestoreTableFromBackup              bool
+	RestoreTableToPointInTime           bool
+	UpdateContinuousBackups             bool
+	UpdateContributorInsights           bool
+	UpdateGlobalTable                   bool
+	UpdateGlobalTableSettings           bool
+	UpdateKinesisStreamingDestination   bool
+	UpdateTableReplicaAutoScaling       bool
+	UpdateTimeToLive                    bool
 }
 
 // WithClient configures the checker to use the provided DynamoDB client.
