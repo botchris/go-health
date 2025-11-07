@@ -19,8 +19,6 @@ func WithAddr(addr string) Option {
 // WithPath sets the HTTP path for health checks.
 func WithPath(path string) Option {
 	return func(r *httpReporter) {
-		strings.TrimPrefix(path, "/")
-
-		r.path = "/" + path
+		r.path = "/" + strings.TrimPrefix(path, "/")
 	}
 }
