@@ -22,7 +22,6 @@ type PermissionsCheck struct {
 	IAM IAMClient
 	STS STSClient
 
-	// Basic operations
 	Get                                 bool
 	BatchGet                            bool
 	Query                               bool
