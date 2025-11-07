@@ -166,9 +166,9 @@ func TestHealth_Watch_EmitsStatusChanges(t *testing.T) {
 	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
 	checker.AddProbe("watch", 50*time.Millisecond, probe)
 
-	statusCh := checker.Start(ctx)
 	watchCh := checker.Watch()
-	assert.Equal(t, statusCh, watchCh)
+
+	checker.Start(ctx)
 
 	select {
 	case st, ok := <-watchCh:
@@ -192,9 +192,46 @@ func TestHealth_Watch_ClosedOnContextCancel(t *testing.T) {
 	watchCh := checker.Watch()
 	checker.Start(ctx)
 
-	// Wait for context to be canceled and channel to close
 	<-ctx.Done()
 
 	_, ok := <-watchCh
 	assert.False(t, ok, "Watch channel should be closed after context cancel")
+}
+
+func TestHealth_MultipleWatchers_ReceiveSameStatuses(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	checker, err := health.NewChecker(health.WithPeriod(50 * time.Millisecond))
+	require.NoError(t, err)
+
+	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
+	checker.AddProbe("multi-watch", 50*time.Millisecond, probe)
+
+	watchCh1 := checker.Watch()
+	watchCh2 := checker.Watch()
+
+	checker.Start(ctx)
+
+	var (
+		st1, st2 health.Status
+		ok1, ok2 bool
+	)
+
+	select {
+	case st1, ok1 = <-watchCh1:
+	case <-ctx.Done():
+		t.Fatal("watchCh1 did not receive status")
+	}
+
+	select {
+	case st2, ok2 = <-watchCh2:
+	case <-ctx.Done():
+		t.Fatal("watchCh2 did not receive status")
+	}
+
+	require.True(t, ok1)
+	require.True(t, ok2)
+	assert.Equal(t, st1, st2)
+	assert.NoError(t, st1.AsError())
 }

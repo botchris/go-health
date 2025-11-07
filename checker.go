@@ -15,10 +15,13 @@ type Checker struct {
 	consecutiveSuccesses int
 	consecutiveFailures  int
 
-	statusChan chan Status
-	checkers   map[string]*probeConfig
-	reporters  []Reporter
-	mu         sync.RWMutex
+	checkers  map[string]*probeConfig
+	reporters []Reporter
+	chMu      sync.RWMutex
+
+	statusMainStream chan Status
+	watchers         []chan Status
+	watchersMu       sync.Mutex
 }
 
 type probeConfig struct {
@@ -40,10 +43,10 @@ func NewChecker(o ...CheckerOption) (*Checker, error) {
 	}
 
 	return &Checker{
-		opts:       opts,
-		statusChan: make(chan Status),
-		checkers:   make(map[string]*probeConfig),
-		reporters:  make([]Reporter, 0),
+		opts:             opts,
+		statusMainStream: make(chan Status),
+		checkers:         make(map[string]*probeConfig),
+		reporters:        make([]Reporter, 0),
 	}, nil
 }
 
@@ -51,17 +54,25 @@ func NewChecker(o ...CheckerOption) (*Checker, error) {
 // until the provided context is canceled. It returns a channel
 // that emits StatusStruct objects at each checking interval.
 func (ch *Checker) Start(ctx context.Context) <-chan Status {
+	ch.watchersMu.Lock()
+
+	if ch.statusMainStream == nil {
+		ch.statusMainStream = make(chan Status)
+	}
+
+	ch.watchersMu.Unlock()
+
 	go ch.startChecking(ctx)
 	go ch.startReporting(ctx)
 
-	return ch.statusChan
+	return ch.Watch()
 }
 
 // AddProbe adds a new Probe with the specified name.
 // The Probe will be executed during the health checking process.
 func (ch *Checker) AddProbe(name string, timeout time.Duration, checker Probe) *Checker {
-	ch.mu.Lock()
-	defer ch.mu.Unlock()
+	ch.chMu.Lock()
+	defer ch.chMu.Unlock()
 
 	ch.checkers[name] = &probeConfig{
 		name:    name,
@@ -74,8 +85,8 @@ func (ch *Checker) AddProbe(name string, timeout time.Duration, checker Probe) *
 
 // AddReporter adds a new Reporter to the Checker.
 func (ch *Checker) AddReporter(reporter Reporter) *Checker {
-	ch.mu.Lock()
-	defer ch.mu.Unlock()
+	ch.chMu.Lock()
+	defer ch.chMu.Unlock()
 
 	ch.reporters = append(ch.reporters, reporter)
 
@@ -87,7 +98,13 @@ func (ch *Checker) AddReporter(reporter Reporter) *Checker {
 // based on the configured success and failure thresholds.
 // Make sure to start the Checker before calling Watch.
 func (ch *Checker) Watch() <-chan Status {
-	return ch.statusChan
+	watcher := make(chan Status, 1)
+
+	ch.watchersMu.Lock()
+	ch.watchers = append(ch.watchers, watcher)
+	ch.watchersMu.Unlock()
+
+	return watcher
 }
 
 // startChecking performs health checks at regular intervals
@@ -100,7 +117,7 @@ func (ch *Checker) startChecking(ctx context.Context) {
 	if ch.opts.initialDelay > 0 {
 		select {
 		case <-ctx.Done():
-			close(ch.statusChan)
+			ch.closeAllWatchers()
 
 			return
 		case <-time.After(ch.opts.initialDelay):
@@ -110,7 +127,7 @@ func (ch *Checker) startChecking(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			close(ch.statusChan)
+			ch.closeAllWatchers()
 
 			return
 		case <-ticker.C:
@@ -132,12 +149,12 @@ func (ch *Checker) startChecking(ctx context.Context) {
 			}
 
 			wg.Wait()
-			ch.notifyStatus(st, ch.statusChan)
+			ch.notifyStatus(st)
 		}
 	}
 }
 
-func (ch *Checker) notifyStatus(st Status, statusChan chan<- Status) {
+func (ch *Checker) notifyStatus(st Status) {
 	shouldNotify := false
 	hasFailed := st.AsError() != nil
 
@@ -160,8 +177,28 @@ func (ch *Checker) notifyStatus(st Status, statusChan chan<- Status) {
 	}
 
 	if shouldNotify {
-		statusChan <- st
+		ch.watchersMu.Lock()
+
+		for _, watcher := range ch.watchers {
+			select {
+			case watcher <- st:
+			default:
+			}
+		}
+
+		ch.watchersMu.Unlock()
 	}
+}
+
+func (ch *Checker) closeAllWatchers() {
+	ch.watchersMu.Lock()
+	defer ch.watchersMu.Unlock()
+
+	for _, watcher := range ch.watchers {
+		close(watcher)
+	}
+
+	ch.watchers = nil
 }
 
 // startReporting listens for status updates and reports them using all registered reporters.
@@ -171,7 +208,7 @@ func (ch *Checker) startReporting(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case st, ok := <-ch.statusChan:
+		case st, ok := <-ch.statusMainStream:
 			if !ok {
 				return
 			}
@@ -207,8 +244,8 @@ func (ch *Checker) startReporting(ctx context.Context) {
 }
 
 func (ch *Checker) getCheckers() []*probeConfig {
-	ch.mu.RLock()
-	defer ch.mu.RUnlock()
+	ch.chMu.RLock()
+	defer ch.chMu.RUnlock()
 
 	checkers := make([]*probeConfig, 0, len(ch.checkers))
 	for _, config := range ch.checkers {
@@ -219,8 +256,8 @@ func (ch *Checker) getCheckers() []*probeConfig {
 }
 
 func (ch *Checker) getReporters() []Reporter {
-	ch.mu.RLock()
-	defer ch.mu.RUnlock()
+	ch.chMu.RLock()
+	defer ch.chMu.RUnlock()
 
 	reporters := make([]Reporter, len(ch.reporters))
 	copy(reporters, ch.reporters)
