@@ -19,9 +19,8 @@ type Checker struct {
 	reporters []Reporter
 	chMu      sync.RWMutex
 
-	statusMainStream chan Status
-	watchers         []chan Status
-	watchersMu       sync.Mutex
+	watchers   []chan Status
+	watchersMu sync.Mutex
 }
 
 type probeConfig struct {
@@ -43,10 +42,9 @@ func NewChecker(o ...CheckerOption) (*Checker, error) {
 	}
 
 	return &Checker{
-		opts:             opts,
-		statusMainStream: make(chan Status),
-		checkers:         make(map[string]*probeConfig),
-		reporters:        make([]Reporter, 0),
+		opts:      opts,
+		checkers:  make(map[string]*probeConfig),
+		reporters: make([]Reporter, 0),
 	}, nil
 }
 
@@ -54,14 +52,6 @@ func NewChecker(o ...CheckerOption) (*Checker, error) {
 // until the provided context is canceled. It returns a channel
 // that emits StatusStruct objects at each checking interval.
 func (ch *Checker) Start(ctx context.Context) <-chan Status {
-	ch.watchersMu.Lock()
-
-	if ch.statusMainStream == nil {
-		ch.statusMainStream = make(chan Status)
-	}
-
-	ch.watchersMu.Unlock()
-
 	go ch.startChecking(ctx)
 	go ch.startReporting(ctx)
 
@@ -204,11 +194,13 @@ func (ch *Checker) closeAllWatchers() {
 // startReporting listens for status updates and reports them using all registered reporters.
 // It runs until the provided context is canceled or the status channel is closed.
 func (ch *Checker) startReporting(ctx context.Context) {
+	stream := ch.Watch()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case st, ok := <-ch.statusMainStream:
+		case st, ok := <-stream:
 			if !ok {
 				return
 			}

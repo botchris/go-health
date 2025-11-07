@@ -3,6 +3,7 @@ package health_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -234,4 +235,49 @@ func TestHealth_MultipleWatchers_ReceiveSameStatuses(t *testing.T) {
 	require.True(t, ok2)
 	assert.Equal(t, st1, st2)
 	assert.NoError(t, st1.AsError())
+}
+
+func TestHealth_Reporter_ReceivesStatusUpdates(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	checker, err := health.NewChecker(health.WithPeriod(50 * time.Millisecond))
+	require.NoError(t, err)
+
+	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
+	checker.AddProbe("reporter-probe", 50*time.Millisecond, probe)
+
+	mock := &mockReporter{}
+	checker.AddReporter(mock)
+	checker.Start(ctx)
+
+	require.Eventually(t, func() bool {
+		return mock.calls.Load() > 0
+	}, 10*time.Second, 50*time.Millisecond, "reporter did not receive status update")
+
+	assert.NoError(t, mock.getLast().AsError())
+}
+
+type mockReporter struct {
+	calls atomic.Int64
+
+	last health.Status
+	lMu  sync.RWMutex
+}
+
+func (m *mockReporter) Report(_ context.Context, st health.Status) error {
+	m.calls.Add(1)
+
+	m.lMu.Lock()
+	m.last = st
+	m.lMu.Unlock()
+
+	return nil
+}
+
+func (m *mockReporter) getLast() health.Status {
+	m.lMu.RLock()
+	defer m.lMu.RUnlock()
+
+	return m.last
 }
