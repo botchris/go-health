@@ -12,13 +12,13 @@ import (
 	"github.com/botchris/go-health"
 )
 
-// dynamoChecker implements health.Checker for DynamoDB.
-type dynamoChecker struct {
+// dynamoProbe implements health.Probe for DynamoDB.
+type dynamoProbe struct {
 	opts *options
 }
 
-// NewChecker creates a new DynamoDB checker with the given options.
-func NewChecker(client *dynamodb.Client, tableName string, o ...Option) (health.Checker, error) {
+// New creates a new DynamoDB probe with the given options.
+func New(client *dynamodb.Client, tableName string, o ...Option) (health.Probe, error) {
 	opts := &options{
 		client: client,
 		table:  tableName,
@@ -30,13 +30,13 @@ func NewChecker(client *dynamodb.Client, tableName string, o ...Option) (health.
 		}
 	}
 
-	return &dynamoChecker{
+	return &dynamoProbe{
 		opts: opts,
 	}, nil
 }
 
 // Check verifies connectivity and optionally permissions to DynamoDB.
-func (c *dynamoChecker) Check(ctx context.Context) error {
+func (c *dynamoProbe) Check(ctx context.Context) error {
 	dsc, dErr := c.opts.client.DescribeTable(ctx, &dynamodb.DescribeTableInput{TableName: aws.String(c.opts.table)})
 	if dErr != nil {
 		return fmt.Errorf("dynamodb connectivity failed: %w", dErr)
@@ -58,8 +58,8 @@ func (c *dynamoChecker) Check(ctx context.Context) error {
 		return errors.Join(indexStatus...)
 	}
 
-	if c.opts.pChecker != nil {
-		if err := c.checkDynamoPermissions(ctx, *dsc.Table.TableArn, c.opts.pChecker); err != nil {
+	if c.opts.permissions != nil {
+		if err := c.checkDynamoPermissions(ctx, *dsc.Table.TableArn, c.opts.permissions); err != nil {
 			return fmt.Errorf("%w: dynamodb permissions check failed", err)
 		}
 	}
@@ -67,7 +67,7 @@ func (c *dynamoChecker) Check(ctx context.Context) error {
 	return nil
 }
 
-func (c *dynamoChecker) checkDynamoPermissions(ctx context.Context, tableARN string, pChecker *PermissionsCheck) error {
+func (c *dynamoProbe) checkDynamoPermissions(ctx context.Context, tableARN string, pChecker *PermissionsCheck) error {
 	var errs []error
 
 	actions := map[string]bool{

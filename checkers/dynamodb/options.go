@@ -24,9 +24,9 @@ type PermissionsCheck struct {
 }
 
 type options struct {
-	client   *dynamodb.Client
-	table    string
-	pChecker *PermissionsCheck
+	client      *dynamodb.Client
+	table       string
+	permissions *PermissionsCheck
 }
 
 // WithPermissionsCheck configures the checker to perform permissions checks
@@ -41,7 +41,7 @@ func WithPermissionsCheck(c PermissionsCheck) Option {
 			return errors.New("PrincipalARN is required for permissions check")
 		}
 
-		o.pChecker = &c
+		o.permissions = &c
 
 		return nil
 	}
