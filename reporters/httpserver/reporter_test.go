@@ -48,7 +48,7 @@ func TestHTTPReporter_HealthyStatus(t *testing.T) {
 	}
 	require.NoError(t, reporter.Report(ctx, status))
 
-	req, err := http.NewRequestWithContext(ctx, "GET", "http://"+addr+"/healthz", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://"+addr+"/healthz", nil)
 	require.NoError(t, err)
 
 	res, err := http.DefaultClient.Do(req)
