@@ -21,11 +21,12 @@ type httpReporter struct {
 	mu     sync.RWMutex
 }
 
-// New creates a new HTTP health reporter. By default, it listens on ":8081" and serves health status
-// at the "/healthz" endpoint. These defaults can be overridden using functional options.
+// New creates a new HTTP health reporter.
+// By default, it listens on ":8081" and serves health status at the "/healthz"
+// endpoint. These defaults can be overridden using functional options.
 //
-// The given context is used to manage the lifecycle of the HTTP server. When the context is canceled,
-// the server will be gracefully shutdown.
+// The given context is used to manage the lifecycle of the HTTP server.
+// When the context is canceled, the server will be gracefully shutdown.
 func New(ctx context.Context, opts ...Option) health.Reporter {
 	r := &httpReporter{
 		addr: ":8081",
@@ -93,7 +94,7 @@ func (r *httpReporter) handleHealth(w http.ResponseWriter, req *http.Request) {
 
 	report := map[string]string{}
 
-	for name, err := range status.Errors {
+	for name, err := range status.Errors() {
 		s := "ok"
 		if err != nil {
 			s = err.Error()
