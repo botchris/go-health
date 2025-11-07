@@ -235,3 +235,37 @@ func TestHealth_MultipleWatchers_ReceiveSameStatuses(t *testing.T) {
 	assert.Equal(t, st1, st2)
 	assert.NoError(t, st1.AsError())
 }
+
+func TestHealth_Reporter_ReceivesStatusUpdates(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	checker, err := health.NewChecker(health.WithPeriod(50 * time.Millisecond))
+	require.NoError(t, err)
+
+	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
+	checker.AddProbe("reporter-probe", 50*time.Millisecond, probe)
+
+	mock := &mockReporter{}
+	checker.AddReporter(mock)
+	checker.Start(ctx)
+
+	require.Eventually(t, func() bool {
+		return mock.calls.Load() > 0
+	}, 10*time.Second, 50*time.Millisecond, "reporter did not receive status update")
+
+	assert.NoError(t, mock.last.AsError())
+}
+
+type mockReporter struct {
+	calls atomic.Int64
+	last  health.Status
+}
+
+func (m *mockReporter) Report(_ context.Context, st health.Status) error {
+	m.calls.Add(1)
+
+	m.last = st
+
+	return nil
+}
