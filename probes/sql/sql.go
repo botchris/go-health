@@ -10,7 +10,7 @@ import (
 	_ "github.com/lib/pq"              // import pg driver
 )
 
-type sqlChecker struct {
+type sqlProbe struct {
 	opts *options
 }
 
@@ -29,10 +29,10 @@ func New(dsn string, o ...Option) (health.Probe, error) {
 		}
 	}
 
-	return &sqlChecker{opts: opts}, nil
+	return &sqlProbe{opts: opts}, nil
 }
 
-func (m sqlChecker) Check(ctx context.Context) (result error) {
+func (m sqlProbe) Check(ctx context.Context) (result error) {
 	db, err := m.opts.opener(m.opts.driver, m.opts.dsn)
 	if err != nil {
 		result = fmt.Errorf("%w: failed to open MySQL connection", err)
