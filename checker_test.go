@@ -3,6 +3,7 @@ package health_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -254,18 +255,29 @@ func TestHealth_Reporter_ReceivesStatusUpdates(t *testing.T) {
 		return mock.calls.Load() > 0
 	}, 10*time.Second, 50*time.Millisecond, "reporter did not receive status update")
 
-	assert.NoError(t, mock.last.AsError())
+	assert.NoError(t, mock.getLast().AsError())
 }
 
 type mockReporter struct {
 	calls atomic.Int64
-	last  health.Status
+
+	last health.Status
+	lMu  sync.RWMutex
 }
 
 func (m *mockReporter) Report(_ context.Context, st health.Status) error {
 	m.calls.Add(1)
 
+	m.lMu.Lock()
 	m.last = st
+	m.lMu.Unlock()
 
 	return nil
+}
+
+func (m *mockReporter) getLast() health.Status {
+	m.lMu.RLock()
+	defer m.lMu.RUnlock()
+
+	return m.last
 }
