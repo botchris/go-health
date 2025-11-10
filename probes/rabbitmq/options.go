@@ -3,8 +3,6 @@ package rabbitmq
 import (
 	"fmt"
 	"time"
-
-	"github.com/botchris/go-health"
 )
 
 // Option defines a configuration option for the RabbitMQ Probe.
@@ -19,8 +17,6 @@ type options struct {
 }
 
 var defaultOptions = options{
-	declareTopic:   "",
-	declareQueue:   "",
 	consumeTimeout: 3 * time.Second,
 	dialTimeout:    5 * time.Second,
 }
@@ -48,6 +44,32 @@ func WithDeclareQueue(queue string) Option {
 		}
 
 		o.declareQueue = queue
+
+		return nil
+	}
+}
+
+// WithConsumeTimeout overrides the timeout used while waiting for a consumed message.
+func WithConsumeTimeout(d time.Duration) Option {
+	return func(o *options) error {
+		if d <= 0 {
+			return fmt.Errorf("consume timeout must be > 0")
+		}
+
+		o.consumeTimeout = d
+
+		return nil
+	}
+}
+
+// WithDialTimeout overrides the timeout used when establishing the connection.
+func WithDialTimeout(d time.Duration) Option {
+	return func(o *options) error {
+		if d <= 0 {
+			return fmt.Errorf("dial timeout must be > 0")
+		}
+
+		o.dialTimeout = d
 
 		return nil
 	}
