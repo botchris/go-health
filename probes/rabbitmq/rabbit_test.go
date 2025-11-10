@@ -51,7 +51,7 @@ func (m *mockChannel) Publish(exchange, key string, mandatory, immediate bool, m
 	if m.failPublish {
 		return errors.New("publish error")
 	}
-	// Simulate delivery if consume channel exists.
+
 	if m.consumeCh != nil {
 		m.consumeCh <- amqp.Delivery{Body: msg.Body}
 	}
