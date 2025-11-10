@@ -3,13 +3,19 @@ package rabbitmq
 import (
 	"fmt"
 	"time"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // Option defines a configuration option for the RabbitMQ Probe.
 type Option func(*options) error
 
+// DialFunc defines a function type for dialing a RabbitMQ server.
+type DialFunc func(dsn string, config amqp.Config) (Connection, error)
+
 type options struct {
 	dsn            string
+	dialer         DialFunc
 	declareTopic   string
 	declareQueue   string
 	consumeTimeout time.Duration
@@ -17,8 +23,22 @@ type options struct {
 }
 
 var defaultOptions = options{
+	dialer:         defaultDialer,
 	consumeTimeout: 3 * time.Second,
 	dialTimeout:    5 * time.Second,
+}
+
+// WithDialer allows providing a custom dialer function for establishing the RabbitMQ connection.
+func WithDialer(d DialFunc) Option {
+	return func(o *options) error {
+		if d == nil {
+			return fmt.Errorf("dialer cannot be nil")
+		}
+
+		o.dialer = d
+
+		return nil
+	}
 }
 
 // WithDeclareTopic attempts to declare a topic exchange with the given name.

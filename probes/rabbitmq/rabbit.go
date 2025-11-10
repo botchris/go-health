@@ -28,6 +28,7 @@ type rabbitProbe struct {
 func New(dsn string, o ...Option) (health.Probe, error) {
 	opts := &options{
 		dsn:            dsn,
+		dialer:         defaultOptions.dialer,
 		consumeTimeout: defaultOptions.consumeTimeout,
 		dialTimeout:    defaultOptions.dialTimeout,
 	}
@@ -43,7 +44,7 @@ func New(dsn string, o ...Option) (health.Probe, error) {
 
 // Check executes the probe flow.
 func (r *rabbitProbe) Check(ctx context.Context) (checkErr error) {
-	conn, err := r.dial()
+	conn, err := r.opts.dialer(r.opts.dsn, amqp.Config{Dial: amqp.DefaultDial(r.opts.dialTimeout)})
 	if err != nil {
 		return fmt.Errorf("rabbitmq dial failed: %w", err)
 	}
@@ -98,13 +99,7 @@ func (r *rabbitProbe) Check(ctx context.Context) (checkErr error) {
 	return nil
 }
 
-func (r *rabbitProbe) dial() (*amqp.Connection, error) {
-	return amqp.DialConfig(r.opts.dsn, amqp.Config{
-		Dial: amqp.DefaultDial(r.opts.dialTimeout),
-	})
-}
-
-func (r *rabbitProbe) declareExchange(ch *amqp.Channel) error {
+func (r *rabbitProbe) declareExchange(ch Channel) error {
 	if err := ch.ExchangeDeclare(r.opts.declareTopic, "topic", true, false, false, false, nil); err != nil {
 		return fmt.Errorf("declare exchange %q: %w", r.opts.declareTopic, err)
 	}
@@ -112,7 +107,7 @@ func (r *rabbitProbe) declareExchange(ch *amqp.Channel) error {
 	return nil
 }
 
-func (r *rabbitProbe) declareQueue(ch *amqp.Channel) error {
+func (r *rabbitProbe) declareQueue(ch Channel) error {
 	if _, err := ch.QueueDeclare(r.opts.declareQueue, false, false, false, false, nil); err != nil {
 		return fmt.Errorf("declare queue %q: %w", r.opts.declareQueue, err)
 	}
@@ -120,7 +115,7 @@ func (r *rabbitProbe) declareQueue(ch *amqp.Channel) error {
 	return nil
 }
 
-func (r *rabbitProbe) bindQueue(ch *amqp.Channel) error {
+func (r *rabbitProbe) bindQueue(ch Channel) error {
 	if err := ch.QueueBind(r.opts.declareQueue, routingKey, r.opts.declareTopic, false, nil); err != nil {
 		return fmt.Errorf("bind queue %q to exchange %q: %w", r.opts.declareQueue, r.opts.declareTopic, err)
 	}
@@ -128,7 +123,7 @@ func (r *rabbitProbe) bindQueue(ch *amqp.Channel) error {
 	return nil
 }
 
-func (r *rabbitProbe) publishAndConsume(ctx context.Context, ch *amqp.Channel) error {
+func (r *rabbitProbe) publishAndConsume(ctx context.Context, ch Channel) error {
 	msgs, err := ch.Consume(r.opts.declareQueue, "", true, false, false, false, nil)
 	if err != nil {
 		return fmt.Errorf("consume start failed: %w", err)
