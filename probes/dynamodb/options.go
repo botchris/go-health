@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
-// Option is a function that configures options for the DynamoDB checker.
+// Option is a function that configures options for the DynamoDB Probe.
 type Option func(*options) error
 
 type options struct {

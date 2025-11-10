@@ -9,7 +9,7 @@ import (
 	"slices"
 )
 
-// Option defines a configuration option for the HTTP Checker.
+// Option defines a configuration option for the HTTP Probe.
 type Option func(*options) error
 
 type options struct {
