@@ -11,7 +11,7 @@ import (
 
 const pongResponse = "PONG"
 
-type redisChecker struct {
+type redisProbe struct {
 	opts *options
 }
 
@@ -34,10 +34,10 @@ func New(dsn string, o ...Option) (health.Probe, error) {
 		}
 	}
 
-	return redisChecker{opts: opts}, nil
+	return redisProbe{opts: opts}, nil
 }
 
-func (r redisChecker) Check(ctx context.Context) (checkErr error) {
+func (r redisProbe) Check(ctx context.Context) (checkErr error) {
 	rdb := redis.NewClient(r.opts.redisOpts)
 
 	defer func() {
@@ -68,7 +68,7 @@ func (r redisChecker) Check(ctx context.Context) (checkErr error) {
 	return
 }
 
-func (r redisChecker) setChecker(ctx context.Context, rdb *redis.Client) error {
+func (r redisProbe) setChecker(ctx context.Context, rdb *redis.Client) error {
 	if r.opts.set == nil {
 		return nil
 	}
@@ -80,7 +80,7 @@ func (r redisChecker) setChecker(ctx context.Context, rdb *redis.Client) error {
 	return nil
 }
 
-func (r redisChecker) getChecker(ctx context.Context, rdb *redis.Client) error {
+func (r redisProbe) getChecker(ctx context.Context, rdb *redis.Client) error {
 	if r.opts.get == nil {
 		return nil
 	}
