@@ -7,6 +7,7 @@ import (
 
 	"github.com/botchris/go-health"
 	"github.com/redis/go-redis/v9"
+	"github.com/redis/go-redis/v9/maintnotifications"
 )
 
 const pongResponse = "PONG"
@@ -21,6 +22,12 @@ func New(dsn string, o ...Option) (health.Probe, error) {
 	redisOptions, err := redis.ParseURL(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to parse redis dsn", err)
+	}
+
+	if redisOptions.MaintNotificationsConfig == nil {
+		redisOptions.MaintNotificationsConfig = &maintnotifications.Config{
+			Mode: maintnotifications.ModeDisabled,
+		}
 	}
 
 	opts := &options{
