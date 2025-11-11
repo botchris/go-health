@@ -3,114 +3,41 @@ package rabbitmq
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-// mockChannel implements the Channel interface for testing.
-type mockChannel struct {
-	failExchange bool
-	failQueue    bool
-	failBind     bool
-	failConsume  bool
-	failPublish  bool
+func TestCheckSuccess_PublishAndReceive(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	consumeCh     chan amqp.Delivery
-	publishCalled bool
-}
+	ch := new(mockChannel)
+	conn := new(mockConn)
+	conn.ch = ch
 
-func (m *mockChannel) ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error {
-	if m.failExchange {
-		return errors.New("exchange declare error")
-	}
+	conn.On("Channel").Return(ch, nil)
+	conn.On("Close").Return(nil)
+	ch.On("Close").Return(nil)
+	ch.On("ExchangeDeclare", "test.topic", "topic", true, false, false, false, mock.Anything).Return(nil)
+	ch.On("QueueDeclare", "test.queue", false, false, false, false, mock.Anything).Return(amqp.Queue{Name: "test.queue"}, nil)
+	ch.On("QueueBind", "test.queue", routingKey, "test.topic", false, mock.Anything).Return(nil)
 
-	return nil
-}
+	msgCh := make(chan amqp.Delivery, 1)
+	ch.On("Consume", "test.queue", "", true, false, false, false, mock.Anything).Return((<-chan amqp.Delivery)(msgCh), nil)
+	ch.On("Publish", "test.topic", routingKey, false, false, mock.AnythingOfType("amqp091.Publishing")).
+		Run(func(args mock.Arguments) {
+			msg, ok := args.Get(4).(amqp.Publishing)
+			if !ok {
+				return
+			}
 
-func (m *mockChannel) QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error) {
-	if m.failQueue {
-		return amqp.Queue{}, errors.New("queue declare error")
-	}
-
-	return amqp.Queue{Name: name}, nil
-}
-
-func (m *mockChannel) QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error {
-	if m.failBind {
-		return errors.New("queue bind error")
-	}
-
-	return nil
-}
-
-func (m *mockChannel) Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error {
-	m.publishCalled = true
-	if m.failPublish {
-		return errors.New("publish error")
-	}
-
-	if m.consumeCh != nil {
-		m.consumeCh <- amqp.Delivery{Body: msg.Body}
-	}
-
-	return nil
-}
-
-func (m *mockChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error) {
-	if m.failConsume {
-		return nil, errors.New("consume start error")
-	}
-
-	if m.consumeCh == nil {
-		m.consumeCh = make(chan amqp.Delivery, 1)
-	}
-
-	return m.consumeCh, nil
-}
-
-func (m *mockChannel) Close() error {
-	return nil
-}
-
-// mockConn implements the Connection interface for testing.
-type mockConn struct {
-	ch         *mockChannel
-	channelErr error
-	closeErr   error
-	closed     bool
-}
-
-func (c *mockConn) Channel() (Channel, error) {
-	if c.channelErr != nil {
-		return nil, c.channelErr
-	}
-
-	return c.ch, nil
-}
-
-func (c *mockConn) Close() error {
-	c.closed = true
-
-	return c.closeErr
-}
-
-// helper to create a custom dialer returning a mockConn.
-func mockDialer(conn *mockConn, dialErr error) DialFunc {
-	return func(dsn string, cfg amqp.Config) (Connection, error) {
-		if dialErr != nil {
-			return nil, dialErr
-		}
-
-		return conn, nil
-	}
-}
-
-func TestCheckSuccess(t *testing.T) {
-	ch := &mockChannel{}
-	conn := &mockConn{ch: ch}
+			msgCh <- amqp.Delivery{Body: msg.Body}
+		}).
+		Return(nil)
 
 	p, err := New("mock://",
 		WithDialer(mockDialer(conn, nil)),
@@ -118,224 +45,308 @@ func TestCheckSuccess(t *testing.T) {
 		WithDeclareQueue("test.queue"),
 		WithConsumeTimeout(200*time.Millisecond),
 	)
-	if err != nil {
-		t.Fatalf("New error: %v", err)
-	}
 
-	if err := p.Check(context.Background()); err != nil {
-		t.Fatalf("Check unexpected error: %v", err)
-	}
+	assert.NoError(t, err)
+	assert.NoError(t, p.Check(ctx))
 
-	if !ch.publishCalled {
-		t.Fatalf("expected publish to be called")
-	}
+	conn.AssertExpectations(t)
+	ch.AssertExpectations(t)
 }
 
 func TestCheckDialFailure(t *testing.T) {
-	p, err := New("mock://",
-		WithDialer(mockDialer(nil, errors.New("dial boom"))),
-	)
-	if err != nil {
-		t.Fatalf("New error: %v", err)
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	err = p.Check(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "rabbitmq dial failed") {
-		t.Fatalf("expected dial failed error, got %v", err)
-	}
+	p, err := New("mock://", WithDialer(mockDialer(nil, errors.New("dial boom"))))
+	assert.NoError(t, err)
+
+	err = p.Check(ctx)
+	assert.ErrorContains(t, err, "rabbitmq dial failed")
 }
 
 func TestCheckChannelOpenFailure(t *testing.T) {
-	conn := &mockConn{channelErr: errors.New("channel boom")}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	p, err := New("mock://",
-		WithDialer(mockDialer(conn, nil)),
-	)
-	if err != nil {
-		t.Fatalf("New error: %v", err)
-	}
-
-	err = p.Check(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "open channel failed") {
-		t.Fatalf("expected open channel failed error, got %v", err)
-	}
+	conn := new(mockConn)
+	conn.On("Channel").Return(nil, errors.New("channel boom"))
+	conn.On("Close").Return(nil)
+	p, err := New("mock://", WithDialer(mockDialer(conn, nil)))
+	assert.NoError(t, err)
+	err = p.Check(ctx)
+	assert.ErrorContains(t, err, "open channel failed")
 }
 
 func TestCheckExchangeDeclareFailure(t *testing.T) {
-	ch := &mockChannel{failExchange: true}
-	conn := &mockConn{ch: ch}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	p, err := New("mock://",
-		WithDialer(mockDialer(conn, nil)),
-		WithDeclareTopic("x"),
-	)
-	if err != nil {
-		t.Fatalf("New error: %v", err)
-	}
+	ch := new(mockChannel)
+	conn := new(mockConn)
+	conn.ch = ch
 
-	err = p.Check(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "declare exchange") {
-		t.Fatalf("expected exchange declare error, got %v", err)
-	}
+	conn.On("Channel").Return(ch, nil)
+	conn.On("Close").Return(nil)
+	ch.On("Close").Return(nil)
+	ch.On("ExchangeDeclare", "x", "topic", true, false, false, false, mock.Anything).Return(errors.New("exchange declare error"))
+
+	p, err := New("mock://", WithDialer(mockDialer(conn, nil)), WithDeclareTopic("x"))
+	assert.NoError(t, err)
+
+	err = p.Check(ctx)
+	assert.ErrorContains(t, err, "declare exchange")
 }
 
 func TestCheckQueueDeclareFailure(t *testing.T) {
-	ch := &mockChannel{failQueue: true}
-	conn := &mockConn{ch: ch}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	p, err := New("mock://",
-		WithDialer(mockDialer(conn, nil)),
-		WithDeclareQueue("q"),
-	)
-	if err != nil {
-		t.Fatalf("New error: %v", err)
-	}
+	ch := new(mockChannel)
+	conn := new(mockConn)
+	conn.ch = ch
 
-	err = p.Check(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "declare queue") {
-		t.Fatalf("expected queue declare error, got %v", err)
-	}
+	conn.On("Channel").Return(ch, nil)
+	conn.On("Close").Return(nil)
+	ch.On("Close").Return(nil)
+	ch.On("QueueDeclare", "q", false, false, false, false, mock.Anything).Return(amqp.Queue{}, errors.New("queue declare error"))
+
+	p, err := New("mock://", WithDialer(mockDialer(conn, nil)), WithDeclareQueue("q"))
+	assert.NoError(t, err)
+
+	err = p.Check(ctx)
+	assert.ErrorContains(t, err, "declare queue")
 }
 
 func TestCheckQueueBindFailure(t *testing.T) {
-	ch := &mockChannel{failBind: true}
-	conn := &mockConn{ch: ch}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	p, err := New("mock://",
-		WithDialer(mockDialer(conn, nil)),
-		WithDeclareTopic("t"),
-		WithDeclareQueue("q"),
-	)
-	if err != nil {
-		t.Fatalf("New error: %v", err)
-	}
+	ch := new(mockChannel)
+	conn := new(mockConn)
+	conn.ch = ch
 
-	err = p.Check(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "bind queue") {
-		t.Fatalf("expected bind queue error, got %v", err)
-	}
+	conn.On("Channel").Return(ch, nil)
+	conn.On("Close").Return(nil)
+	ch.On("Close").Return(nil)
+	ch.On("ExchangeDeclare", "t", "topic", true, false, false, false, mock.Anything).Return(nil)
+	ch.On("QueueDeclare", "q", false, false, false, false, mock.Anything).Return(amqp.Queue{Name: "q"}, nil)
+	ch.On("QueueBind", "q", routingKey, "t", false, mock.Anything).Return(errors.New("queue bind error"))
+
+	p, err := New("mock://", WithDialer(mockDialer(conn, nil)), WithDeclareTopic("t"), WithDeclareQueue("q"))
+	assert.NoError(t, err)
+
+	err = p.Check(ctx)
+	assert.ErrorContains(t, err, "bind queue")
 }
 
 func TestCheckConsumeStartFailure(t *testing.T) {
-	ch := &mockChannel{failConsume: true}
-	conn := &mockConn{ch: ch}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	p, err := New("mock://",
-		WithDialer(mockDialer(conn, nil)),
-		WithDeclareTopic("t"),
-		WithDeclareQueue("q"),
-	)
-	if err != nil {
-		t.Fatalf("New error: %v", err)
-	}
+	ch := new(mockChannel)
+	conn := new(mockConn)
+	conn.ch = ch
 
-	err = p.Check(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "consume start failed") {
-		t.Fatalf("expected consume start failed error, got %v", err)
-	}
+	conn.On("Channel").Return(ch, nil)
+	conn.On("Close").Return(nil)
+	ch.On("Close").Return(nil)
+	ch.On("ExchangeDeclare", "t", "topic", true, false, false, false, mock.Anything).Return(nil)
+	ch.On("QueueDeclare", "q", false, false, false, false, mock.Anything).Return(amqp.Queue{Name: "q"}, nil)
+	ch.On("QueueBind", "q", routingKey, "t", false, mock.Anything).Return(nil)
+	ch.On("Consume", "q", "", true, false, false, false, mock.Anything).Return(nil, errors.New("consume start error"))
+
+	p, err := New("mock://", WithDialer(mockDialer(conn, nil)), WithDeclareTopic("t"), WithDeclareQueue("q"))
+	assert.NoError(t, err)
+
+	err = p.Check(ctx)
+	assert.ErrorContains(t, err, "consume start failed")
 }
 
 func TestCheckPublishFailure(t *testing.T) {
-	ch := &mockChannel{failPublish: true}
-	conn := &mockConn{ch: ch}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	p, err := New("mock://",
-		WithDialer(mockDialer(conn, nil)),
-		WithDeclareTopic("t"),
-		WithDeclareQueue("q"),
-	)
-	if err != nil {
-		t.Fatalf("New error: %v", err)
-	}
+	ch := new(mockChannel)
+	conn := new(mockConn)
+	conn.ch = ch
 
-	err = p.Check(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "publish failed") {
-		t.Fatalf("expected publish failed error, got %v", err)
-	}
+	conn.On("Channel").Return(ch, nil)
+	conn.On("Close").Return(nil)
+	ch.On("Close").Return(nil)
+	ch.On("ExchangeDeclare", "t", "topic", true, false, false, false, mock.Anything).Return(nil)
+	ch.On("QueueDeclare", "q", false, false, false, false, mock.Anything).Return(amqp.Queue{Name: "q"}, nil)
+	ch.On("QueueBind", "q", routingKey, "t", false, mock.Anything).Return(nil)
+
+	msgCh := make(chan amqp.Delivery, 1)
+	ch.On("Consume", "q", "", true, false, false, false, mock.Anything).Return((<-chan amqp.Delivery)(msgCh), nil)
+	ch.On("Publish", "t", routingKey, false, false, mock.AnythingOfType("amqp091.Publishing")).Return(errors.New("publish error"))
+
+	p, err := New("mock://", WithDialer(mockDialer(conn, nil)), WithDeclareTopic("t"), WithDeclareQueue("q"))
+	assert.NoError(t, err)
+
+	err = p.Check(ctx)
+	assert.ErrorContains(t, err, "publish failed")
 }
 
 func TestCheckContextCanceled(t *testing.T) {
-	ch := &mockChannel{}
-	conn := &mockConn{ch: ch}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	p, err := New("mock://",
-		WithDialer(mockDialer(conn, nil)),
-		WithDeclareTopic("t"),
-		WithDeclareQueue("q"),
-		WithConsumeTimeout(200*time.Millisecond),
-	)
-	if err != nil {
-		t.Fatalf("New error: %v", err)
-	}
+	ch := new(mockChannel)
+	conn := new(mockConn)
+	conn.ch = ch
 
-	ctx, cancel := context.WithCancel(context.Background())
+	conn.On("Channel").Return(ch, nil)
+	conn.On("Close").Return(nil)
+	ch.On("Close").Return(nil)
+	ch.On("ExchangeDeclare", "t", "topic", true, false, false, false, mock.Anything).Return(nil)
+	ch.On("QueueDeclare", "q", false, false, false, false, mock.Anything).Return(amqp.Queue{Name: "q"}, nil)
+	ch.On("QueueBind", "q", routingKey, "t", false, mock.Anything).Return(nil)
+
+	msgCh := make(chan amqp.Delivery, 1)
+	ch.On("Consume", "q", "", true, false, false, false, mock.Anything).Return((<-chan amqp.Delivery)(msgCh), nil)
+	ch.On("Publish", "t", routingKey, false, false, mock.AnythingOfType("amqp091.Publishing")).Return(nil)
+
+	p, err := New("mock://", WithDialer(mockDialer(conn, nil)), WithDeclareTopic("t"), WithDeclareQueue("q"), WithConsumeTimeout(200*time.Millisecond))
+	assert.NoError(t, err)
+
 	cancel()
-
-	err = p.Check(ctx)
-	if err == nil || !strings.Contains(err.Error(), "context canceled") {
-		t.Fatalf("expected context canceled error, got %v", err)
-	}
+	assert.ErrorContains(t, p.Check(ctx), "context canceled")
 }
 
 func TestCheckNoPublishWhenOnlyTopicConfigured(t *testing.T) {
-	ch := &mockChannel{}
-	conn := &mockConn{ch: ch}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	p, err := New("mock://",
-		WithDialer(mockDialer(conn, nil)),
-		WithDeclareTopic("t"),
-	)
-	if err != nil {
-		t.Fatalf("New error: %v", err)
-	}
+	ch := new(mockChannel)
+	conn := new(mockConn)
+	conn.ch = ch
 
-	if err := p.Check(context.Background()); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	conn.On("Channel").Return(ch, nil)
+	conn.On("Close").Return(nil)
+	ch.On("Close").Return(nil)
+	ch.On("ExchangeDeclare", "t", "topic", true, false, false, false, mock.Anything).Return(nil)
 
-	if ch.publishCalled {
-		t.Fatalf("publish should not be called when queue is not configured")
-	}
+	p, err := New("mock://", WithDialer(mockDialer(conn, nil)), WithDeclareTopic("t"))
+	assert.NoError(t, err)
+	assert.NoError(t, p.Check(ctx))
 }
 
 func TestCheckNoPublishWhenOnlyQueueConfigured(t *testing.T) {
-	ch := &mockChannel{}
-	conn := &mockConn{ch: ch}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	p, err := New("mock://",
-		WithDialer(mockDialer(conn, nil)),
-		WithDeclareQueue("q"),
-	)
-	if err != nil {
-		t.Fatalf("New error: %v", err)
-	}
+	ch := new(mockChannel)
+	conn := new(mockConn)
+	conn.ch = ch
 
-	if err := p.Check(context.Background()); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	conn.On("Channel").Return(ch, nil)
+	conn.On("Close").Return(nil)
+	ch.On("Close").Return(nil)
+	ch.On("QueueDeclare", "q", false, false, false, false, mock.Anything).Return(amqp.Queue{Name: "q"}, nil)
 
-	if ch.publishCalled {
-		t.Fatalf("publish should not be called when topic is not configured")
-	}
+	p, err := New("mock://", WithDialer(mockDialer(conn, nil)), WithDeclareQueue("q"))
+	assert.NoError(t, err)
+	assert.NoError(t, p.Check(ctx))
 }
 
 func TestCheckConnectionCloseError(t *testing.T) {
-	ch := &mockChannel{}
-	conn := &mockConn{
-		ch:       ch,
-		closeErr: errors.New("close boom"),
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ch := new(mockChannel)
+	conn := new(mockConn)
+	conn.ch = ch
+
+	conn.On("Channel").Return(ch, nil)
+	conn.On("Close").Return(errors.New("close boom"))
+	ch.On("Close").Return(nil)
+
+	p, err := New("mock://", WithDialer(mockDialer(conn, nil)))
+	assert.NoError(t, err)
+
+	err = p.Check(ctx)
+	assert.ErrorContains(t, err, "rabbitmq connection close")
+}
+
+type mockChannel struct {
+	mock.Mock
+}
+
+func (m *mockChannel) ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error {
+	argsM := m.Called(name, kind, durable, autoDelete, internal, noWait, args)
+
+	return argsM.Error(0)
+}
+
+func (m *mockChannel) QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error) {
+	argsM := m.Called(name, durable, autoDelete, exclusive, noWait, args)
+	q, ok := argsM.Get(0).(amqp.Queue)
+
+	if !ok {
+		return amqp.Queue{}, argsM.Error(1)
 	}
 
-	p, err := New("mock://",
-		WithDialer(mockDialer(conn, nil)),
-	)
+	return q, argsM.Error(1)
+}
 
-	if err != nil {
-		t.Fatalf("New error: %v", err)
+func (m *mockChannel) QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error {
+	argsM := m.Called(name, key, exchange, noWait, args)
+
+	return argsM.Error(0)
+}
+
+func (m *mockChannel) Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error {
+	argsM := m.Called(exchange, key, mandatory, immediate, msg)
+
+	return argsM.Error(0)
+}
+
+func (m *mockChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error) {
+	argsM := m.Called(queue, consumer, autoAck, exclusive, noLocal, noWait, args)
+	c, ok := argsM.Get(0).(<-chan amqp.Delivery)
+
+	if !ok {
+		return nil, argsM.Error(1)
 	}
 
-	err = p.Check(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "rabbitmq connection close") {
-		t.Fatalf("expected connection close error, got %v", err)
+	return c, argsM.Error(1)
+}
+
+func (m *mockChannel) Close() error {
+	argsM := m.Called()
+
+	return argsM.Error(0)
+}
+
+type mockConn struct {
+	mock.Mock
+	ch Channel
+}
+
+func (m *mockConn) Channel() (Channel, error) {
+	argsM := m.Called()
+	c, ok := argsM.Get(0).(Channel)
+
+	if !ok {
+		return nil, argsM.Error(1)
+	}
+
+	return c, argsM.Error(1)
+}
+
+func (m *mockConn) Close() error {
+	argsM := m.Called()
+
+	return argsM.Error(0)
+}
+
+func mockDialer(conn *mockConn, dialErr error) DialFunc {
+	return func(dsn string, cfg amqp.Config) (Connection, error) {
+		if dialErr != nil {
+			return nil, dialErr
+		}
+
+		return conn, nil
 	}
 }
