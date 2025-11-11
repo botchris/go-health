@@ -10,11 +10,21 @@ import (
 // Option defines a configuration option for the RabbitMQ Probe.
 type Option func(*options) error
 
-// DialFunc defines a function type for dialing a RabbitMQ server.
+// DialFunc defines a function type for dialing a AMQP server.
 type DialFunc func(dsn string, config amqp.Config) (Connection, error)
+
+func defaultDialer(dsn string, config amqp.Config) (Connection, error) {
+	conn, err := amqp.DialConfig(dsn, config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &connectionWrapper{conn: conn}, nil
+}
 
 type options struct {
 	dsn            string
+	vhost          string
 	dialer         DialFunc
 	declareTopic   string
 	declareQueue   string
@@ -26,6 +36,20 @@ var defaultOptions = options{
 	dialer:         defaultDialer,
 	consumeTimeout: 3 * time.Second,
 	dialTimeout:    5 * time.Second,
+}
+
+// WithVHost sets the virtual host to use when connecting to RabbitMQ.
+// If an empty string is provided, an error is returned.
+func WithVHost(vhost string) Option {
+	return func(o *options) error {
+		if vhost == "" {
+			return fmt.Errorf("vhost cannot be empty")
+		}
+
+		o.vhost = vhost
+
+		return nil
+	}
 }
 
 // WithDialer allows providing a custom dialer function for establishing the RabbitMQ connection.

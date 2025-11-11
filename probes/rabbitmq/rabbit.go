@@ -44,7 +44,12 @@ func New(dsn string, o ...Option) (health.Probe, error) {
 
 // Check executes the probe flow.
 func (r *rabbitProbe) Check(ctx context.Context) (checkErr error) {
-	conn, err := r.opts.dialer(r.opts.dsn, amqp.Config{Dial: amqp.DefaultDial(r.opts.dialTimeout)})
+	cfg := amqp.Config{
+		Vhost: r.opts.vhost,
+		Dial:  amqp.DefaultDial(r.opts.dialTimeout),
+	}
+
+	conn, err := r.opts.dialer(r.opts.dsn, cfg)
 	if err != nil {
 		return fmt.Errorf("rabbitmq dial failed: %w", err)
 	}
@@ -69,24 +74,24 @@ func (r *rabbitProbe) Check(ctx context.Context) (checkErr error) {
 	}()
 
 	if r.opts.declareTopic != "" {
-		if err := r.declareExchange(ch); err != nil {
-			checkErr = err
+		if dErr := r.declareExchange(ch); dErr != nil {
+			checkErr = dErr
 
 			return
 		}
 	}
 
 	if r.opts.declareQueue != "" {
-		if err := r.declareQueue(ch); err != nil {
-			checkErr = err
+		if dErr := r.declareQueue(ch); dErr != nil {
+			checkErr = dErr
 
 			return
 		}
 	}
 
 	if r.opts.declareTopic != "" && r.opts.declareQueue != "" {
-		if err := r.bindQueue(ch); err != nil {
-			checkErr = err
+		if bErr := r.bindQueue(ch); bErr != nil {
+			checkErr = bErr
 
 			return
 		}

@@ -4,15 +4,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func defaultDialer(dsn string, config amqp.Config) (Connection, error) {
-	conn, err := amqp.DialConfig(dsn, config)
-	if err != nil {
-		return nil, err
-	}
-
-	return &connectionWrapper{conn: conn}, nil
-}
-
+// Connection defines an interface for AMQP connections.
 type connectionWrapper struct {
 	conn *amqp.Connection
 }
@@ -30,6 +22,7 @@ func (c *connectionWrapper) Close() error {
 	return c.conn.Close()
 }
 
+// Channel defines an interface for AMQP channels.
 type channelWrapper struct {
 	ch *amqp.Channel
 }

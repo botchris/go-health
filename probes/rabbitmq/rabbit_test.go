@@ -329,6 +329,7 @@ func TestCheckConnectionCloseError(t *testing.T) {
 	p, err := New("mock://",
 		WithDialer(mockDialer(conn, nil)),
 	)
+
 	if err != nil {
 		t.Fatalf("New error: %v", err)
 	}

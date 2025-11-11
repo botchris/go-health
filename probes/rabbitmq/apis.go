@@ -2,13 +2,13 @@ package rabbitmq
 
 import amqp "github.com/rabbitmq/amqp091-go"
 
-// Connection represents a RabbitMQ connection.
+// Connection represents a AMQP connection.
 type Connection interface {
 	Channel() (Channel, error)
 	Close() error
 }
 
-// Channel represents a RabbitMQ channel.
+// Channel represents a AMQP channel.
 type Channel interface {
 	ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqp.Table) error
 	QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqp.Table) (amqp.Queue, error)
