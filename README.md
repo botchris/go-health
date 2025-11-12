@@ -13,7 +13,58 @@ A simple Golang package for performing health checks within your Go applications
 go get github.com/botchris/go-health
 ```
 
+## Example Usage
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/botchris/go-health"
+)
+
+func main() {
+	// 1. Create a context that is canceled on SIGINT or SIGTERM
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	// 2. Create a new health checker.
+	checker, err := health.NewChecker(health.WithPeriod(time.Second))
+	if err != nil {
+		panic(err)
+	}
+
+	// 3. AddProbe a simple probe.
+	checker.AddProbe("mysql-db01", time.Second, health.ProbeFunc(func(context.Context) error {
+		time.Sleep(100 * time.Millisecond) // Simulate a database check
+
+		return nil // return an error if the check fails
+	}))
+
+	// 4. Start the health checker and handle the results.
+	for status := range checker.Start(ctx) {
+		if err := status.AsError(); err != nil {
+			fmt.Printf("Check failed: %s\n", err)
+		} else {
+			fmt.Printf("Check passed\n")
+		}
+	}
+}
+
+```
+
 ## Concepts
+
+This section explains the main concepts used in the `go-health` package.
+
+- [Probe](#probe)
+- [Checker](#checker)
+- [Reporter](#reporter)
 
 ### Probe
 
@@ -22,14 +73,16 @@ the `ProbeFunc` type, which allows you to define a probe using a function.
 
 Probes are expected to return an error if the check fails, or `nil` if the check passes.
 
-### Built-in Probes
+#### Built-in Probes
 
 - **DynamoDB**: A probe that checks the health of an AWS DynamoDB table.
+- **gRPC**: A probe that performs a gRPC health check on a specified gRPC server.
 - **HTTP**: A probe that performs an HTTP request to a specified URL and checks the response status code.
-- **SQL**: A probe that pings a SQL database to check its availability.
+- **RabbitMQ**: A probe that checks the health of a RabbitMQ server by connecting and optionally checking a queue.
 - **Redis**: A probe that pings a Redis server to check its availability, and optionally checks for a specific keys.
+- **SQL**: A probe that pings a SQL database to check its availability.
 
-### Building Custom Probes
+#### Building Custom Probes
 
 You can create custom probes by implementing the `Probe` interface. Here's an example of a simple custom probe:
 
@@ -55,7 +108,7 @@ A Checker is responsible for managing and executing probes at specified interval
 with a Checker, all of which are executed concurrently for generating health status updates. If a probe fails, the
 Checker will report the failure in the health status.
 
-### Configuration Options
+#### Configuration Options
 
 The Checker can be configured using various options, such as the check period, timeout duration, and more.
 These options can be set when creating a new Checker using the `NewChecker` function.
@@ -105,47 +158,8 @@ logging the status changes to the console, sending alerts, updating a dashboard,
 NOTE: reporters may not receive a status update on startup until threshold conditions
 are met. So you may want to initialize your reporter with an initial "unknown" status.
 
-## Example Usage
+#### Built-in Reporters
 
-```go
-package main
-
-import (
-	"context"
-	"fmt"
-	"os/signal"
-	"syscall"
-	"time"
-
-	"github.com/botchris/go-health"
-)
-
-func main() {
-	// 1. Create a context that is canceled on SIGINT or SIGTERM
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-
-	// 2. Create a new health checker.
-	checker, err := health.NewChecker(health.WithPeriod(time.Second))
-	if err != nil {
-		panic(err)
-	}
-
-	// 3. AddProbe a simple probe.
-	checker.AddProbe("mysql-db01", time.Second, health.ProbeFunc(func(context.Context) error {
-		time.Sleep(100 * time.Millisecond) // Simulate a database check
-
-		return nil // return an error if the check fails
-	}))
-
-	// 4. Start the health checker and handle the results.
-	for status := range checker.Start(ctx) {
-		if err := status.AsError(); err != nil {
-			fmt.Printf("Check failed: %s\n", err)
-		} else {
-			fmt.Printf("Check passed\n")
-		}
-	}
-}
-
-```
+- **HTTP**: An HTTP reporter that exposes an endpoint for health status checks.
+- **Proto Buffer**: A reporter that exposes health status service using the Health Checking Protocol defined in gRPC.
+- **String Writer**: A reporter that writes health status updates to an `io.StringWriter`, such as `os.Stdout` or a log file.
