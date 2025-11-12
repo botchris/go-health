@@ -22,51 +22,24 @@ type PermissionsCheck struct {
 	IAM IAMClient
 	STS STSClient
 
-	Get                                 bool
-	BatchGet                            bool
-	Query                               bool
-	Scan                                bool
-	Put                                 bool
-	BatchWrite                          bool
-	Delete                              bool
-	Update                              bool
-	UpdateTable                         bool
-	UpdateItem                          bool
-	CreateTable                         bool
-	DeleteTable                         bool
-	DescribeTable                       bool
-	DescribeStream                      bool
-	ListTables                          bool
-	ListStreams                         bool
-	TagResource                         bool
-	UntagResource                       bool
-	TransactGet                         bool
-	TransactWrite                       bool
-	RestoreTable                        bool
-	ExportTable                         bool
-	ImportTable                         bool
-	DescribeLimits                      bool
-	DescribeBackups                     bool
-	DescribeContinuousBackups           bool
-	DescribeContributorInsights         bool
-	DescribeKinesisStreamingDestination bool
-	DescribeReservedCapacity            bool
-	DescribeReservedCapacityOfferings   bool
-	DescribeTableReplicaAutoScaling     bool
-	DescribeTimeToLive                  bool
-	EnableKinesisStreamingDestination   bool
-	DisableKinesisStreamingDestination  bool
-	EnableReplication                   bool
-	DisableReplication                  bool
-	RestoreTableFromBackup              bool
-	RestoreTableToPointInTime           bool
-	UpdateContinuousBackups             bool
-	UpdateContributorInsights           bool
-	UpdateGlobalTable                   bool
-	UpdateGlobalTableSettings           bool
-	UpdateKinesisStreamingDestination   bool
-	UpdateTableReplicaAutoScaling       bool
-	UpdateTimeToLive                    bool
+	ItemRead     ItemReadPermissions
+	ItemWrite    ItemWritePermissions
+	Query        QueryPermissions
+	Transaction  TransactionPermissions
+	Table        TablePermissions
+	Stream       StreamPermissions
+	Backup       BackupPermissions
+	GlobalTable  GlobalTablePermissions
+	Replication  ReplicationPermissions
+	TTL          TTLPermissions
+	Kinesis      KinesisPermissions
+	Contributors ContributorInsightsPermissions
+	Capacity     CapacityPermissions
+	DataTransfer DataTransferPermissions
+	Tags         TagPermissions
+	AutoScaling  AutoScalingPermissions
+
+	actionsMap map[string]bool
 }
 
 // WithClient configures the checker to use the provided DynamoDB client.
@@ -86,6 +59,8 @@ func WithClient(c Client) Option {
 // the default AWS configuration.
 func WithPermissionsCheck(c PermissionsCheck) Option {
 	return func(o *options) error {
+		c.actionsMap = prepareActionsMap(&c)
+
 		if c.IAM != nil && c.STS != nil {
 			o.permissions = &c
 

@@ -67,7 +67,7 @@ func (c *dynamoProbe) Check(ctx context.Context) error {
 	return nil
 }
 
-func (c *dynamoProbe) checkDynamoPermissions(ctx context.Context, tableARN string, pChecker *PermissionsCheck) error {
+func (c *dynamoProbe) checkDynamoPermissions(ctx context.Context, tableARN string, pc *PermissionsCheck) error {
 	var errs []error
 
 	identity, err := c.opts.permissions.STS.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
@@ -76,9 +76,8 @@ func (c *dynamoProbe) checkDynamoPermissions(ctx context.Context, tableARN strin
 	}
 
 	principalARN := aws.ToString(identity.Arn)
-	actions := prepareActionsMap(pChecker)
 
-	for action, enabled := range actions {
+	for action, enabled := range pc.actionsMap {
 		if !enabled {
 			continue
 		}
@@ -116,54 +115,6 @@ func (c *dynamoProbe) checkDynamoPermissions(ctx context.Context, tableARN strin
 	}
 
 	return nil
-}
-
-func prepareActionsMap(pChecker *PermissionsCheck) map[string]bool {
-	return map[string]bool{
-		"dynamodb:GetItem":                             pChecker.Get,
-		"dynamodb:BatchGetItem":                        pChecker.BatchGet,
-		"dynamodb:Query":                               pChecker.Query,
-		"dynamodb:Scan":                                pChecker.Scan,
-		"dynamodb:PutItem":                             pChecker.Put,
-		"dynamodb:BatchWriteItem":                      pChecker.BatchWrite,
-		"dynamodb:DeleteItem":                          pChecker.Delete,
-		"dynamodb:UpdateItem":                          pChecker.UpdateItem || pChecker.Update,
-		"dynamodb:UpdateTable":                         pChecker.UpdateTable || pChecker.Update,
-		"dynamodb:CreateTable":                         pChecker.CreateTable,
-		"dynamodb:DeleteTable":                         pChecker.DeleteTable,
-		"dynamodb:DescribeTable":                       pChecker.DescribeTable,
-		"dynamodb:DescribeStream":                      pChecker.DescribeStream,
-		"dynamodb:ListTables":                          pChecker.ListTables,
-		"dynamodb:ListStreams":                         pChecker.ListStreams,
-		"dynamodb:TagResource":                         pChecker.TagResource,
-		"dynamodb:UntagResource":                       pChecker.UntagResource,
-		"dynamodb:TransactGetItems":                    pChecker.TransactGet,
-		"dynamodb:TransactWriteItems":                  pChecker.TransactWrite,
-		"dynamodb:RestoreTableFromBackup":              pChecker.RestoreTableFromBackup || pChecker.RestoreTable,
-		"dynamodb:RestoreTableToPointInTime":           pChecker.RestoreTableToPointInTime || pChecker.RestoreTable,
-		"dynamodb:ExportTableToPointInTime":            pChecker.ExportTable,
-		"dynamodb:ImportTable":                         pChecker.ImportTable,
-		"dynamodb:DescribeLimits":                      pChecker.DescribeLimits,
-		"dynamodb:DescribeBackups":                     pChecker.DescribeBackups,
-		"dynamodb:DescribeContinuousBackups":           pChecker.DescribeContinuousBackups,
-		"dynamodb:DescribeContributorInsights":         pChecker.DescribeContributorInsights,
-		"dynamodb:DescribeKinesisStreamingDestination": pChecker.DescribeKinesisStreamingDestination,
-		"dynamodb:DescribeReservedCapacity":            pChecker.DescribeReservedCapacity,
-		"dynamodb:DescribeReservedCapacityOfferings":   pChecker.DescribeReservedCapacityOfferings,
-		"dynamodb:DescribeTableReplicaAutoScaling":     pChecker.DescribeTableReplicaAutoScaling,
-		"dynamodb:DescribeTimeToLive":                  pChecker.DescribeTimeToLive,
-		"dynamodb:EnableKinesisStreamingDestination":   pChecker.EnableKinesisStreamingDestination,
-		"dynamodb:DisableKinesisStreamingDestination":  pChecker.DisableKinesisStreamingDestination,
-		"dynamodb:EnableReplication":                   pChecker.EnableReplication,
-		"dynamodb:DisableReplication":                  pChecker.DisableReplication,
-		"dynamodb:UpdateContinuousBackups":             pChecker.UpdateContinuousBackups,
-		"dynamodb:UpdateContributorInsights":           pChecker.UpdateContributorInsights,
-		"dynamodb:UpdateGlobalTable":                   pChecker.UpdateGlobalTable,
-		"dynamodb:UpdateGlobalTableSettings":           pChecker.UpdateGlobalTableSettings,
-		"dynamodb:UpdateKinesisStreamingDestination":   pChecker.UpdateKinesisStreamingDestination,
-		"dynamodb:UpdateTableReplicaAutoScaling":       pChecker.UpdateTableReplicaAutoScaling,
-		"dynamodb:UpdateTimeToLive":                    pChecker.UpdateTimeToLive,
-	}
 }
 
 func prepareOptions(tableName string, o ...Option) (*options, error) {

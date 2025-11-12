@@ -138,15 +138,22 @@ func TestDynamoProbe_Check_Permissions_AllAllowed(t *testing.T) {
 	}
 
 	perm := dynamodbc.PermissionsCheck{
-		IAM:        iamClient,
-		STS:        stsClient,
-		Get:        true,
-		BatchGet:   true,
-		Query:      true,
-		Scan:       true,
-		Put:        true,
-		BatchWrite: true,
-		Delete:     true,
+		IAM: iamClient,
+		STS: stsClient,
+		ItemRead: dynamodbc.ItemReadPermissions{
+			GetItem:      true,
+			BatchGetItem: true,
+		},
+		Query: dynamodbc.QueryPermissions{
+			Query: true,
+			Scan:  true,
+		},
+		ItemWrite: dynamodbc.ItemWritePermissions{
+			PutItem:        true,
+			BatchWriteItem: true,
+			UpdateItem:     true,
+			DeleteItem:     true,
+		},
 	}
 
 	probe, err := dynamodbc.New("test", dynamodbc.WithClient(client), dynamodbc.WithPermissionsCheck(perm))
@@ -188,8 +195,9 @@ func TestDynamoProbe_Check_Permissions_Denied(t *testing.T) {
 	perm := dynamodbc.PermissionsCheck{
 		IAM: iamClient,
 		STS: stsClient,
-		Get: true,
-		Put: true,
+
+		ItemRead:  dynamodbc.ItemReadPermissions{GetItem: true},
+		ItemWrite: dynamodbc.ItemWritePermissions{PutItem: true},
 	}
 
 	probe, err := dynamodbc.New("test", dynamodbc.WithClient(client), dynamodbc.WithPermissionsCheck(perm))
@@ -228,9 +236,9 @@ func TestDynamoProbe_Check_Permissions_SimulateError(t *testing.T) {
 	}
 
 	perm := dynamodbc.PermissionsCheck{
-		IAM: iamClient,
-		STS: stsClient,
-		Get: true,
+		IAM:      iamClient,
+		STS:      stsClient,
+		ItemRead: dynamodbc.ItemReadPermissions{GetItem: true},
 	}
 
 	probe, err := dynamodbc.New("test", dynamodbc.WithClient(client), dynamodbc.WithPermissionsCheck(perm))
@@ -269,9 +277,9 @@ func TestDynamoProbe_Check_Permissions_STSError(t *testing.T) {
 	}
 
 	perm := dynamodbc.PermissionsCheck{
-		IAM: iamClient,
-		STS: stsClient,
-		Get: true,
+		IAM:      iamClient,
+		STS:      stsClient,
+		ItemRead: dynamodbc.ItemReadPermissions{GetItem: true},
 	}
 
 	probe, err := dynamodbc.New("test", dynamodbc.WithClient(client), dynamodbc.WithPermissionsCheck(perm))
