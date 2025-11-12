@@ -42,6 +42,7 @@ type PermissionsCheck struct {
 func WithClient(client Client) Option {
 	return func(o *options) error {
 		o.client = client
+
 		return nil
 	}
 }

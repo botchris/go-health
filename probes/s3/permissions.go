@@ -1,5 +1,6 @@
 package s3
 
+// ReadPermissions captures S3 read permissions.
 type ReadPermissions struct {
 	GetObject               bool
 	GetObjectVersion        bool
@@ -16,6 +17,7 @@ type ReadPermissions struct {
 	GetObjectVersionAcl     bool
 }
 
+// WritePermissions captures S3 write permissions.
 type WritePermissions struct {
 	PutObject                bool
 	PutObjectTagging         bool
@@ -28,6 +30,7 @@ type WritePermissions struct {
 	ListMultipartUploadParts bool
 }
 
+// DeletePermissions captures S3 delete permissions.
 type DeletePermissions struct {
 	DeleteObject               bool
 	DeleteObjectVersion        bool
@@ -37,6 +40,7 @@ type DeletePermissions struct {
 	BypassGovernanceRetention  bool
 }
 
+// BucketConfigPermissions captures S3 bucket configuration permissions.
 type BucketConfigPermissions struct {
 	CreateBucket               bool
 	DeleteBucket               bool
@@ -62,6 +66,7 @@ type BucketConfigPermissions struct {
 	PutBucketOwnershipControls bool
 }
 
+// BucketPolicyPermissions captures S3 bucket policy permissions.
 type BucketPolicyPermissions struct {
 	GetBucketPolicy       bool
 	PutBucketPolicy       bool
@@ -71,6 +76,7 @@ type BucketPolicyPermissions struct {
 	PutBucketAcl          bool
 }
 
+// SecurityPermissions captures S3 security-related permissions.
 type SecurityPermissions struct {
 	GetEncryptionConfiguration  bool
 	PutEncryptionConfiguration  bool
@@ -80,6 +86,7 @@ type SecurityPermissions struct {
 	PutAccountPublicAccessBlock bool
 }
 
+// LifecyclePermissions captures S3 lifecycle management permissions.
 type LifecyclePermissions struct {
 	GetLifecycleConfiguration             bool
 	PutLifecycleConfiguration             bool
@@ -97,6 +104,7 @@ type LifecyclePermissions struct {
 	DeleteStorageLensConfigurationTagging bool
 }
 
+// AnalyticsPermissions captures S3 analytics permissions.
 type AnalyticsPermissions struct {
 	GetAnalyticsConfiguration    bool
 	PutAnalyticsConfiguration    bool
@@ -110,6 +118,7 @@ type AnalyticsPermissions struct {
 	GetStorageLensDashboard      bool
 }
 
+// AccessPointPermissions captures S3 access point permissions.
 type AccessPointPermissions struct {
 	CreateAccessPoint                          bool
 	DeleteAccessPoint                          bool
@@ -132,6 +141,7 @@ type AccessPointPermissions struct {
 	SubmitMultiRegionAccessPointRoutes         bool
 }
 
+// ObjectLockPermissions captures S3 object lock permissions.
 type ObjectLockPermissions struct {
 	GetObjectLockConfiguration       bool
 	PutObjectLockConfiguration       bool
@@ -139,6 +149,7 @@ type ObjectLockPermissions struct {
 	PutBucketObjectLockConfiguration bool
 }
 
+// BatchPermissions captures S3 batch operations permissions.
 type BatchPermissions struct {
 	CreateJob         bool
 	DescribeJob       bool
@@ -147,6 +158,7 @@ type BatchPermissions struct {
 	UpdateJobStatus   bool
 }
 
+// AccountPermissions captures S3 account-level permissions.
 type AccountPermissions struct {
 	ListAllMyBuckets bool
 	HeadBucket       bool

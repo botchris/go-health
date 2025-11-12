@@ -18,6 +18,12 @@ type s3Probe struct {
 	opts *options
 }
 
+// New creates a new S3 probe with the given options.
+//
+// You must ensure that the provided Client has at least
+// permissions to perform the `s3:HeadBucket` operation.
+// Additional permissions can be checked by providing a PermissionsCheck
+// option.
 func New(bucket string, o ...Option) (health.Probe, error) {
 	opts, err := prepareOptions(bucket, o...)
 	if err != nil {
