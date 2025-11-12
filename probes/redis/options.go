@@ -7,7 +7,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Option defines a configuration option for the Redis checker.
+// Option defines a configuration option for the Redis Probe.
 type Option func(*options) error
 
 // SetCheck defines a check that attempts to set a key-value pair

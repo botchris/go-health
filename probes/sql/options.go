@@ -6,6 +6,7 @@ import (
 	"slices"
 )
 
+// Option defines a configuration option for the SQL Probe.
 type Option func(*options) error
 
 type options struct {
