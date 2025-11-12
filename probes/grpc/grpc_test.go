@@ -115,7 +115,9 @@ func TestGrpcProbe_Check(t *testing.T) {
 		)
 
 		require.NoError(t, err)
-		require.Error(t, probe.Check(ctx))
+
+		err = probe.Check(ctx)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "service is not healthy")
 	})
 
