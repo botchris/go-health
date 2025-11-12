@@ -58,13 +58,13 @@ func (g grpcProbe) Check(ctx context.Context) (checkErr error) {
 		return
 	}
 
-	if g.opts.serviceName == "" {
-		g.opts.serviceName = ""
+	if g.opts.serviceName != nil {
+		return
 	}
 
 	healthClient := grpc_health_v1.NewHealthClient(conn)
 
-	res, err := healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: g.opts.serviceName})
+	res, err := healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: *g.opts.serviceName})
 	if err != nil {
 		checkErr = fmt.Errorf("gRPC health check failed: %w", err)
 
