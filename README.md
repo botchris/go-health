@@ -80,6 +80,7 @@ Probes are expected to return an error if the check fails, or `nil` if the check
 - **HTTP**: A probe that performs an HTTP request to a specified URL and checks the response status code.
 - **RabbitMQ**: A probe that checks the health of a RabbitMQ server by connecting and optionally checking a queue.
 - **Redis**: A probe that pings a Redis server to check its availability, and optionally checks for a specific keys.
+- **S3**: A probe that checks the health of an AWS S3 bucket.
 - **SQL**: A probe that pings a SQL database to check its availability.
 
 #### Building Custom Probes
