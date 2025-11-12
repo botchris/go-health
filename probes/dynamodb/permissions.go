@@ -1,10 +1,12 @@
 package dynamodb
 
+// ItemReadPermissions defines permissions related to reading items from DynamoDB.
 type ItemReadPermissions struct {
 	GetItem      bool
 	BatchGetItem bool
 }
 
+// ItemWritePermissions defines permissions related to writing items to DynamoDB.
 type ItemWritePermissions struct {
 	PutItem        bool
 	UpdateItem     bool
@@ -12,6 +14,7 @@ type ItemWritePermissions struct {
 	BatchWriteItem bool
 }
 
+// QueryPermissions defines permissions related to querying and scanning items in DynamoDB.
 type QueryPermissions struct {
 	Query         bool
 	Scan          bool
@@ -21,12 +24,14 @@ type QueryPermissions struct {
 	PartiQLDelete bool
 }
 
+// TransactionPermissions defines permissions related to transactional operations in DynamoDB.
 type TransactionPermissions struct {
 	TransactGetItems   bool
 	TransactWriteItems bool
 	ConditionCheckItem bool
 }
 
+// TablePermissions defines permissions related to table management in DynamoDB.
 type TablePermissions struct {
 	CreateTable                    bool
 	DeleteTable                    bool
@@ -37,6 +42,7 @@ type TablePermissions struct {
 	DescribeLocalSecondaryIndexes  bool
 }
 
+// StreamPermissions defines permissions related to DynamoDB Streams.
 type StreamPermissions struct {
 	DescribeStream   bool
 	GetShardIterator bool
@@ -44,6 +50,7 @@ type StreamPermissions struct {
 	ListStreams      bool
 }
 
+// BackupPermissions defines permissions related to backup and restore operations in DynamoDB.
 type BackupPermissions struct {
 	CreateBackup              bool
 	DeleteBackup              bool
@@ -55,6 +62,7 @@ type BackupPermissions struct {
 	UpdateContinuousBackups   bool
 }
 
+// GlobalTablePermissions defines permissions related to global tables in DynamoDB.
 type GlobalTablePermissions struct {
 	CreateGlobalTable           bool
 	UpdateGlobalTable           bool
@@ -64,6 +72,7 @@ type GlobalTablePermissions struct {
 	UpdateGlobalTableSettings   bool
 }
 
+// ReplicationPermissions defines permissions related to table replication in DynamoDB.
 type ReplicationPermissions struct {
 	CreateTableReplica bool
 	DeleteTableReplica bool
@@ -71,11 +80,13 @@ type ReplicationPermissions struct {
 	DisableReplication bool
 }
 
+// TTLPermissions defines permissions related to Time to Live (TTL) settings in DynamoDB.
 type TTLPermissions struct {
 	DescribeTimeToLive bool
 	UpdateTimeToLive   bool
 }
 
+// KinesisPermissions defines permissions related to Kinesis streaming destinations in DynamoDB.
 type KinesisPermissions struct {
 	DescribeKinesisStreamingDestination bool
 	EnableKinesisStreamingDestination   bool
@@ -83,11 +94,13 @@ type KinesisPermissions struct {
 	UpdateKinesisStreamingDestination   bool
 }
 
+// ContributorInsightsPermissions defines permissions related to Contributor Insights in DynamoDB.
 type ContributorInsightsPermissions struct {
 	DescribeContributorInsights bool
 	UpdateContributorInsights   bool
 }
 
+// CapacityPermissions defines permissions related to capacity management in DynamoDB.
 type CapacityPermissions struct {
 	DescribeLimits                    bool
 	DescribeReservedCapacity          bool
@@ -95,6 +108,7 @@ type CapacityPermissions struct {
 	PurchaseReservedCapacityOfferings bool
 }
 
+// DataTransferPermissions defines permissions related to data transfer operations in DynamoDB.
 type DataTransferPermissions struct {
 	ExportTableToPointInTime bool
 	DescribeExport           bool
@@ -104,18 +118,20 @@ type DataTransferPermissions struct {
 	ListImports              bool
 }
 
+// TagPermissions defines permissions related to tagging resources in DynamoDB.
 type TagPermissions struct {
 	TagResource        bool
 	UntagResource      bool
 	ListTagsOfResource bool
 }
 
+// AutoScalingPermissions defines permissions related to auto-scaling in DynamoDB.
 type AutoScalingPermissions struct {
 	DescribeTableReplicaAutoScaling bool
 	UpdateTableReplicaAutoScaling   bool
 }
 
-// prepareActionsMap creates a map of DynamoDB action names to their permission check values
+// prepareActionsMap creates a map of DynamoDB action names to their permission check values.
 func prepareActionsMap(pc *PermissionsCheck) map[string]bool {
 	return map[string]bool{
 		// Item Read Permissions
