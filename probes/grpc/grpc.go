@@ -58,7 +58,7 @@ func (g grpcProbe) Check(ctx context.Context) (checkErr error) {
 		return
 	}
 
-	if g.opts.serviceName != nil {
+	if g.opts.serviceName == nil {
 		return
 	}
 

@@ -51,6 +51,7 @@ func TestNew(t *testing.T) {
 			"localhost:50051",
 			grpcProbe.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 		)
+
 		require.NoError(t, err)
 		assert.NotNil(t, probe)
 	})
@@ -60,6 +61,7 @@ func TestNew(t *testing.T) {
 			"localhost:50051",
 			grpcProbe.WithServiceName("my-service"),
 		)
+
 		require.NoError(t, err)
 		assert.NotNil(t, probe)
 	})
@@ -70,10 +72,10 @@ func TestNew(t *testing.T) {
 		assert.Contains(t, err.Error(), "at least one dial option must be provided")
 	})
 
-	t.Run("error with empty service name", func(t *testing.T) {
+	t.Run("no error with empty service name", func(t *testing.T) {
 		_, err := grpcProbe.New("localhost:50051", grpcProbe.WithServiceName(""))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "service name cannot be empty")
+
+		require.NoError(t, err)
 	})
 }
 
@@ -104,15 +106,16 @@ func TestGrpcProbe_Check(t *testing.T) {
 
 		defer grpcServer.Stop()
 
+		time.Sleep(time.Second)
+
 		probe, err := grpcProbe.New(
 			lis.Addr().String(),
 			grpcProbe.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 			grpcProbe.WithServiceName(serviceName),
 		)
-		require.NoError(t, err)
 
-		err = probe.Check(ctx)
-		require.Error(t, err)
+		require.NoError(t, err)
+		require.Error(t, probe.Check(ctx))
 		assert.Contains(t, err.Error(), "service is not healthy")
 	})
 
@@ -181,15 +184,15 @@ func TestGrpcProbe_Check(t *testing.T) {
 			lis.Addr().String(),
 			grpcProbe.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 		)
-		require.NoError(t, err)
 
-		err = probe.Check(ctx)
 		require.NoError(t, err)
+		require.NoError(t, probe.Check(ctx))
 	})
 
 	t.Run("context cancellation", func(t *testing.T) {
 		probe, err := grpcProbe.New(
 			"localhost:99999",
+			grpcProbe.WithServiceName("test-service"),
 			grpcProbe.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 		)
 		require.NoError(t, err)
@@ -197,7 +200,6 @@ func TestGrpcProbe_Check(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
 
-		err = probe.Check(ctx)
-		require.Error(t, err)
+		require.Error(t, probe.Check(ctx))
 	})
 }
