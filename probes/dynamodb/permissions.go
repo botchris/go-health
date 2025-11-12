@@ -1,12 +1,10 @@
 package dynamodb
 
-// ItemReadPermissions captures DynamoDB item read permissions.
 type ItemReadPermissions struct {
 	GetItem      bool
 	BatchGetItem bool
 }
 
-// ItemWritePermissions captures DynamoDB item write permissions.
 type ItemWritePermissions struct {
 	PutItem        bool
 	UpdateItem     bool
@@ -14,7 +12,6 @@ type ItemWritePermissions struct {
 	BatchWriteItem bool
 }
 
-// QueryPermissions captures DynamoDB query permissions.
 type QueryPermissions struct {
 	Query         bool
 	Scan          bool
@@ -24,14 +21,12 @@ type QueryPermissions struct {
 	PartiQLDelete bool
 }
 
-// TransactionPermissions captures DynamoDB transaction permissions.
 type TransactionPermissions struct {
 	TransactGetItems   bool
 	TransactWriteItems bool
 	ConditionCheckItem bool
 }
 
-// TablePermissions captures DynamoDB table management permissions.
 type TablePermissions struct {
 	CreateTable                    bool
 	DeleteTable                    bool
@@ -42,7 +37,6 @@ type TablePermissions struct {
 	DescribeLocalSecondaryIndexes  bool
 }
 
-// StreamPermissions captures DynamoDB stream permissions.
 type StreamPermissions struct {
 	DescribeStream   bool
 	GetShardIterator bool
@@ -50,7 +44,6 @@ type StreamPermissions struct {
 	ListStreams      bool
 }
 
-// BackupPermissions captures DynamoDB backup and restore permissions.
 type BackupPermissions struct {
 	CreateBackup              bool
 	DeleteBackup              bool
@@ -62,7 +55,6 @@ type BackupPermissions struct {
 	UpdateContinuousBackups   bool
 }
 
-// GlobalTablePermissions captures DynamoDB global table permissions.
 type GlobalTablePermissions struct {
 	CreateGlobalTable           bool
 	UpdateGlobalTable           bool
@@ -72,7 +64,6 @@ type GlobalTablePermissions struct {
 	UpdateGlobalTableSettings   bool
 }
 
-// ReplicationPermissions captures DynamoDB replication permissions.
 type ReplicationPermissions struct {
 	CreateTableReplica bool
 	DeleteTableReplica bool
@@ -80,13 +71,11 @@ type ReplicationPermissions struct {
 	DisableReplication bool
 }
 
-// TTLPermissions captures DynamoDB Time to Live (TTL) permissions.
 type TTLPermissions struct {
 	DescribeTimeToLive bool
 	UpdateTimeToLive   bool
 }
 
-// KinesisPermissions captures DynamoDB Kinesis streaming permissions.
 type KinesisPermissions struct {
 	DescribeKinesisStreamingDestination bool
 	EnableKinesisStreamingDestination   bool
@@ -94,13 +83,11 @@ type KinesisPermissions struct {
 	UpdateKinesisStreamingDestination   bool
 }
 
-// ContributorInsightsPermissions captures DynamoDB Contributor Insights permissions.
 type ContributorInsightsPermissions struct {
 	DescribeContributorInsights bool
 	UpdateContributorInsights   bool
 }
 
-// CapacityPermissions captures DynamoDB capacity management permissions.
 type CapacityPermissions struct {
 	DescribeLimits                    bool
 	DescribeReservedCapacity          bool
@@ -108,7 +95,6 @@ type CapacityPermissions struct {
 	PurchaseReservedCapacityOfferings bool
 }
 
-// DataTransferPermissions captures DynamoDB data transfer permissions.
 type DataTransferPermissions struct {
 	ExportTableToPointInTime bool
 	DescribeExport           bool
@@ -118,14 +104,12 @@ type DataTransferPermissions struct {
 	ListImports              bool
 }
 
-// TagPermissions captures DynamoDB tagging permissions.
 type TagPermissions struct {
 	TagResource        bool
 	UntagResource      bool
 	ListTagsOfResource bool
 }
 
-// AutoScalingPermissions captures DynamoDB auto-scaling permissions.
 type AutoScalingPermissions struct {
 	DescribeTableReplicaAutoScaling bool
 	UpdateTableReplicaAutoScaling   bool
