@@ -1,4 +1,4 @@
-package protohealth_test
+package grpchealth_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/botchris/go-health"
-	"github.com/botchris/go-health/reporters/protohealth"
+	"github.com/botchris/go-health/reporters/grpchealth"
 	"github.com/stretchr/testify/require"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -30,7 +30,7 @@ func TestProtoHealthReporter_ServingStatus(t *testing.T) {
 
 	mockServer := &mockHealthServer{}
 	serviceName := "my-service"
-	reporter := protohealth.New(serviceName, mockServer)
+	reporter := grpchealth.New(serviceName, mockServer)
 
 	healthyStatus := health.NewStatus().Append("db", nil).Append("cache", nil)
 
