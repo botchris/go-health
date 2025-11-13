@@ -20,8 +20,8 @@ func TestHealth_RegisterAndStart_Success(t *testing.T) {
 	checker, err := health.NewChecker(health.WithPeriod(50 * time.Millisecond))
 	require.NoError(t, err)
 
-	successChecker := health.ProbeFunc(func(ctx context.Context) error { return nil })
-	checker.AddProbe("success", 50*time.Millisecond, successChecker)
+	successProbe := health.ProbeFunc(func(ctx context.Context) error { return nil })
+	checker.AddProbe("success", 50*time.Millisecond, successProbe)
 
 	for st := range checker.Start(ctx) {
 		require.NoError(t, st.AsError())
@@ -36,8 +36,8 @@ func TestHealth_RegisterAndStart_Failure(t *testing.T) {
 	checker, err := health.NewChecker(health.WithPeriod(50 * time.Millisecond))
 	require.NoError(t, err)
 
-	failChecker := health.ProbeFunc(func(ctx context.Context) error { return errors.New("fail") })
-	checker.AddProbe("fail", 50*time.Millisecond, failChecker)
+	failProbe := health.ProbeFunc(func(ctx context.Context) error { return errors.New("fail") })
+	checker.AddProbe("fail", 50*time.Millisecond, failProbe)
 
 	for st := range checker.Start(ctx) {
 		require.Error(t, st.AsError())
@@ -53,11 +53,11 @@ func TestHealth_MultipleCheckers(t *testing.T) {
 	checker, err := health.NewChecker(health.WithPeriod(50 * time.Millisecond))
 	require.NoError(t, err)
 
-	successChecker := health.ProbeFunc(func(ctx context.Context) error { return nil })
-	failChecker := health.ProbeFunc(func(ctx context.Context) error { return sentinel })
+	successProbe := health.ProbeFunc(func(ctx context.Context) error { return nil })
+	failProbe := health.ProbeFunc(func(ctx context.Context) error { return sentinel })
 
-	checker.AddProbe("success", 50*time.Millisecond, successChecker)
-	checker.AddProbe("fail", 50*time.Millisecond, failChecker)
+	checker.AddProbe("success", 50*time.Millisecond, successProbe)
+	checker.AddProbe("fail", 50*time.Millisecond, failProbe)
 
 	for st := range checker.Start(ctx) {
 		require.ErrorIs(t, st.AsError(), sentinel)
@@ -100,13 +100,13 @@ func TestHealth_WithSuccessThreshold(t *testing.T) {
 	require.NoError(t, err)
 
 	probeCalls := atomic.Int64{}
-	successChecker := health.ProbeFunc(func(ctx context.Context) error {
+	successProbe := health.ProbeFunc(func(ctx context.Context) error {
 		probeCalls.Add(1)
 
 		return nil
 	})
 
-	checker.AddProbe("success", 50*time.Millisecond, successChecker)
+	checker.AddProbe("success", 50*time.Millisecond, successProbe)
 
 	statusCh := checker.Start(ctx)
 	seenStatuses := 0
@@ -134,13 +134,13 @@ func TestHealth_WithFailureThreshold(t *testing.T) {
 	require.NoError(t, err)
 
 	probeCalls := atomic.Int64{}
-	failChecker := health.ProbeFunc(func(ctx context.Context) error {
+	failProbe := health.ProbeFunc(func(ctx context.Context) error {
 		probeCalls.Add(1)
 
 		return errors.New("fail")
 	})
 
-	checker.AddProbe("fail", 50*time.Millisecond, failChecker)
+	checker.AddProbe("fail", 50*time.Millisecond, failProbe)
 
 	statusCh := checker.Start(ctx)
 	seenStatuses := 0

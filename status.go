@@ -7,26 +7,29 @@ import (
 	"time"
 )
 
-// Status represents the result of health checks,
-// containing any errors encountered indexed by checker name.
+// Status represents the result of a health check as reported
+// by a Checker, containing any errors encountered indexed by Probe name.
 type Status interface {
 	// Append adds a new probe result to the Status.
-	// probeName is the name of the health checker,
-	// err is the error returned by the checker (nil if successful).
-	Append(probeName string, err error) Status
+	//
+	// - probeName: is the name of the Probe as registered in the
+	//   Checker instance using Checker.AddProbe method.
+	// - result: is the error returned by the Probe.Check method,
+	//   which may be nil on success.
+	Append(probeName string, result error) Status
 
-	// Errors returns a map of checker names to their respective errors.
-	// A nil error indicates a successful check.
+	// Errors returns a map of Probe names to their respective errors.
+	// A nil error indicates a successful probe check.
 	Errors() map[string]error
 
-	// Flatten returns a slice of all non-nil errors from the health checks.
+	// Flatten returns a slice of all non-nil errors from the Probe checks.
 	Flatten() []error
 
 	// AsError aggregates all errors and returns them as a single error.
 	// If there are no errors, it returns nil.
 	AsError() error
 
-	// Duration returns the total time taken to perform the health checks
+	// Duration returns the total time taken to perform the Probe checks
 	// and calculate this Status.
 	Duration() time.Duration
 }
@@ -57,15 +60,15 @@ func NewStatus(now ...time.Time) Status {
 	}
 }
 
-func (s *status) Append(probeName string, err error) Status {
+func (s *status) Append(probeName string, result error) Status {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.errors[probeName] = err
+	s.errors[probeName] = result
 	s.duration = time.Since(s.started)
 
-	if err != nil {
-		s.flatten = append(s.flatten, err)
+	if result != nil {
+		s.flatten = append(s.flatten, result)
 	}
 
 	return s

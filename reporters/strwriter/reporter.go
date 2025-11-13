@@ -2,10 +2,9 @@ package strwriter
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
-	"slices"
-	"strings"
 
 	"github.com/botchris/go-health"
 )
@@ -22,24 +21,27 @@ func New(f io.StringWriter) health.Reporter {
 }
 
 func (i writer) Report(_ context.Context, status health.Status) error {
-	_, err := i.f.WriteString(i.statusToLogLine(status) + "\n")
+	_, err := i.f.WriteString(i.statusToLogLine(status))
 
 	return err
 }
 
 func (i writer) statusToLogLine(status health.Status) string {
-	out := make([]string, 0)
+	out := make(map[string]string)
 
-	for check, err := range status.Errors() {
+	for probe, err := range status.Errors() {
 		right := "ok"
 		if err != nil {
 			right = err.Error()
 		}
 
-		out = append(out, fmt.Sprintf("%s: %s", check, right))
+		out[probe] = right
 	}
 
-	slices.Sort(out)
+	jsonOut, jErr := json.Marshal(out)
+	if jErr == nil {
+		return string(jsonOut)
+	}
 
-	return strings.Join(out, "; ")
+	return fmt.Sprintf("failed to marshal health status to JSON: %v; raw status: %v", jErr, status.Errors())
 }

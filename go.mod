@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.52.3
 	github.com/aws/aws-sdk-go-v2/service/iam v1.49.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.90.1
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.42.14
 	github.com/aws/aws-sdk-go-v2/service/sts v1.39.1
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/go-sql-driver/mysql v1.9.3

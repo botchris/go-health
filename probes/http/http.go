@@ -52,7 +52,7 @@ func (h *httpProbe) Check(ctx context.Context) error {
 	if h.opts.expectContains != "" {
 		data, rErr := io.ReadAll(resp.Body)
 		if rErr != nil {
-			return fmt.Errorf("%w: failed to read response body", rErr)
+			return fmt.Errorf("failed to read response body: %w", rErr)
 		}
 
 		if !strings.Contains(string(data), h.opts.expectContains) {
@@ -66,12 +66,12 @@ func (h *httpProbe) Check(ctx context.Context) error {
 func (h *httpProbe) do(ctx context.Context) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, h.opts.method, h.opts.url.String(), bytes.NewReader(h.opts.payload))
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to create HTTP request", err)
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
 	resp, err := h.opts.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: HTTP request failed", err)
+		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
 
 	return resp, nil

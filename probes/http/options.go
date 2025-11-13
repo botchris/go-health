@@ -45,7 +45,7 @@ func withURL(u string) Option {
 
 		uri, err := url.Parse(u)
 		if err != nil {
-			return fmt.Errorf("%w: invalid URL", err)
+			return fmt.Errorf("invalid URL: %w", err)
 		}
 
 		c.url = uri
@@ -76,7 +76,7 @@ func WithPayload(payload any) Option {
 	return func(c *options) error {
 		b, err := parsePayload(payload)
 		if err != nil {
-			return fmt.Errorf("%w: invalid payload", err)
+			return fmt.Errorf("invalid payload: %w", err)
 		}
 
 		c.payload = b
@@ -133,7 +133,7 @@ func parsePayload(b any) ([]byte, error) {
 	default:
 		jb, err := json.Marshal(val)
 		if err != nil {
-			return nil, fmt.Errorf("%w: failed to marshal json body", err)
+			return nil, fmt.Errorf("failed to marshal json body: %w", err)
 		}
 
 		return jb, nil

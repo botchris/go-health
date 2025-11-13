@@ -41,7 +41,7 @@ func (s s3Probe) Check(ctx context.Context) error {
 
 	if s.opts.permissions != nil {
 		if err := s.checkBucketPermissions(ctx, *res.BucketArn, s.opts.permissions); err != nil {
-			return fmt.Errorf("%w: dynamodb permissions check failed", err)
+			return fmt.Errorf("dynamodb permissions check failed: %w", err)
 		}
 	}
 
