@@ -30,7 +30,7 @@ func TestReport_WritesStatusToFile(t *testing.T) {
 	}
 
 	got := strings.TrimSpace(buf.String())
-	want := "cache: timeout; db: connection failed"
+	want := `{"cache":"timeout","db":"connection failed"}`
 	assert.Equal(t, want, got)
 }
 
@@ -50,8 +50,8 @@ func TestReport_NoErrors(t *testing.T) {
 	}
 
 	line := strings.TrimSpace(buf.String())
-	assert.Contains(t, line, "db: ok")
-	assert.Contains(t, line, "cache: ok")
+	assert.Contains(t, line, `"db":"ok"`)
+	assert.Contains(t, line, `"cache":"ok"`)
 }
 
 var _ io.StringWriter = (*fakeFile)(nil)
