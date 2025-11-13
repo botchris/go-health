@@ -1,10 +1,10 @@
-# AWS SQS Probe
+# AWS S3 Probe
 
-The SQS Probe allows you to monitor the health of a AWS SQS queue.
-It checks the availability your SQS queues by requesting the queue attributes,
+The S3 Probe allows you to monitor the health of an AWS S3 bucket.
+It checks the availability of your S3 buckets by requesting the bucket's attributes,
 and optionally simulates IAM policies to verify permissions. For example, you
-can check if your application has the necessary permissions to send or receive
-messages from the queue.
+can check if your application has the necessary permissions to read or write
+objects from the bucket.
 
 ---
 
@@ -15,4 +15,4 @@ Ensure that the following IAM permissions are granted:
 
 - `iam:SimulatePrincipalPolicy`
 - `sts:GetCallerIdentity`
-- `sqs:GetQueueAttributes`
+- `s3:HeadBucket`
