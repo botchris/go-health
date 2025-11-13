@@ -60,7 +60,7 @@ func (c *dynamoProbe) Check(ctx context.Context) error {
 
 	if c.opts.permissions != nil {
 		if err := c.checkDynamoPermissions(ctx, *dsc.Table.TableArn, c.opts.permissions); err != nil {
-			return fmt.Errorf("%w: dynamodb permissions check failed", err)
+			return fmt.Errorf("dynamodb permissions check failed: %w", err)
 		}
 	}
 

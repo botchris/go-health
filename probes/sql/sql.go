@@ -35,26 +35,26 @@ func New(dsn string, o ...Option) (health.Probe, error) {
 func (m sqlProbe) Check(ctx context.Context) (result error) {
 	db, err := m.opts.opener(m.opts.driver, m.opts.dsn)
 	if err != nil {
-		result = fmt.Errorf("%w: failed to open MySQL connection", err)
+		result = fmt.Errorf("failed to open MySQL connection: %w", err)
 
 		return
 	}
 
 	defer func() {
 		if err = db.Close(); err != nil && result == nil {
-			result = fmt.Errorf("%w: failed to close MySQL connection", err)
+			result = fmt.Errorf("failed to close MySQL connection: %w", err)
 		}
 	}()
 
 	if err = db.PingContext(ctx); err != nil {
-		result = fmt.Errorf("%w: failed to ping MySQL database", err)
+		result = fmt.Errorf("failed to ping MySQL database: %w", err)
 
 		return
 	}
 
 	rows, err := db.QueryContext(ctx, "SELECT 1")
 	if err != nil {
-		result = fmt.Errorf("%w: failed to execute version query", err)
+		result = fmt.Errorf("failed to execute version query: %w", err)
 
 		return
 	}
@@ -62,7 +62,7 @@ func (m sqlProbe) Check(ctx context.Context) (result error) {
 	//nolint:gocritic
 	defer func() {
 		if err = rows.Close(); err != nil && result == nil {
-			result = fmt.Errorf("%w: failed to close rows", err)
+			result = fmt.Errorf("failed to close rows: %w", err)
 		}
 	}()
 
