@@ -1,19 +1,11 @@
-package protohealth
+package grpchealth
 
 import (
 	"context"
 
 	"github.com/botchris/go-health"
-	ghealth "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
-
-var _ HealthServer = (*ghealth.Server)(nil)
-
-// HealthServer abstract the part of gRPC health server we need.
-type HealthServer interface {
-	SetServingStatus(service string, status healthpb.HealthCheckResponse_ServingStatus)
-}
 
 type proto struct {
 	service string
@@ -21,7 +13,8 @@ type proto struct {
 }
 
 // New creates a new reporter that reports health status to the gRPC health server
-// under the given service name.
+// under the given service name. If serviceName is an empty string, it
+// reports the overall server status instead of a specific service.
 func New(serviceName string, server HealthServer) health.Reporter {
 	return &proto{
 		service: serviceName,
