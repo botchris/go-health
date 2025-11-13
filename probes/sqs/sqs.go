@@ -48,7 +48,7 @@ func (s sqsProbe) Check(ctx context.Context) error {
 
 	if s.opts.permissions != nil {
 		if pErr := s.checkQueuePermissions(ctx, queueARN, s.opts.permissions); pErr != nil {
-			return fmt.Errorf("%w: sqs permissions check failed", pErr)
+			return fmt.Errorf("sqs permissions check failed: %w", pErr)
 		}
 	}
 

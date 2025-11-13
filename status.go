@@ -14,9 +14,9 @@ type Status interface {
 	//
 	// - probeName: is the name of the Probe as registered in the
 	//   Checker instance using Checker.AddProbe method.
-	// - err: is the error returned by the Probe.Check method,
+	// - result: is the error returned by the Probe.Check method,
 	//   which may be nil on success.
-	Append(probeName string, err error) Status
+	Append(probeName string, result error) Status
 
 	// Errors returns a map of Probe names to their respective errors.
 	// A nil error indicates a successful probe check.
@@ -60,15 +60,15 @@ func NewStatus(now ...time.Time) Status {
 	}
 }
 
-func (s *status) Append(probeName string, err error) Status {
+func (s *status) Append(probeName string, result error) Status {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.errors[probeName] = err
+	s.errors[probeName] = result
 	s.duration = time.Since(s.started)
 
-	if err != nil {
-		s.flatten = append(s.flatten, err)
+	if result != nil {
+		s.flatten = append(s.flatten, result)
 	}
 
 	return s

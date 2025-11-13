@@ -21,7 +21,7 @@ type redisProbe struct {
 func New(dsn string, o ...Option) (health.Probe, error) {
 	redisOptions, err := redis.ParseURL(dsn)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to parse redis dsn", err)
+		return nil, fmt.Errorf("failed to parse redis dsn: %w", err)
 	}
 
 	if redisOptions.MaintNotificationsConfig == nil {
@@ -55,7 +55,7 @@ func (r redisProbe) Check(ctx context.Context) (checkErr error) {
 
 	pong, err := rdb.Ping(ctx).Result()
 	if err != nil {
-		checkErr = fmt.Errorf("%w: redis ping failed", err)
+		checkErr = fmt.Errorf("redis ping failed: %w", err)
 
 		return
 	}
@@ -81,7 +81,7 @@ func (r redisProbe) setChecker(ctx context.Context, rdb *redis.Client) error {
 	}
 
 	if err := rdb.Set(ctx, r.opts.set.Key, r.opts.set.Value, r.opts.set.Expiration).Err(); err != nil {
-		return fmt.Errorf("%w: failed to set key %q", err, r.opts.set.Key)
+		return fmt.Errorf("failed to set key %q: %w", r.opts.set.Key, err)
 	}
 
 	return nil
@@ -102,11 +102,11 @@ func (r redisProbe) getChecker(ctx context.Context, rdb *redis.Client) error {
 			return nil
 		}
 
-		return fmt.Errorf("%w: failed to get key %q", gErr, r.opts.get.Key)
+		return fmt.Errorf("failed to get key %q: %w", r.opts.get.Key, gErr)
 	}
 
 	if r.opts.get.ExpectedValue != "" && val != r.opts.get.ExpectedValue {
-		return fmt.Errorf("unexpected value for key %q: got %q, want %q", r.opts.get.Key, val, r.opts.get.ExpectedValue)
+		return fmt.Errorf("unexpected value for key %q, got %q, want %q", r.opts.get.Key, val, r.opts.get.ExpectedValue)
 	}
 
 	return nil

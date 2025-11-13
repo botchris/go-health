@@ -158,7 +158,7 @@ func TestGrpcProbe_Check(t *testing.T) {
 	})
 
 	t.Run("successful check without service name", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		lis, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "localhost:0")

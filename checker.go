@@ -9,13 +9,13 @@ import (
 	"github.com/cenkalti/backoff/v4"
 )
 
-// Checker manages and performs periodic health checks using registered checkers.
+// Checker manages and performs periodic health checks using registered Probes.
 type Checker struct {
 	opts                 checkerOptions
 	consecutiveSuccesses int
 	consecutiveFailures  int
 
-	checkers  map[string]*probeConfig
+	probes    map[string]*probeConfig
 	reporters []Reporter
 	chMu      sync.RWMutex
 
@@ -43,7 +43,7 @@ func NewChecker(o ...CheckerOption) (*Checker, error) {
 
 	return &Checker{
 		opts:      opts,
-		checkers:  make(map[string]*probeConfig),
+		probes:    make(map[string]*probeConfig),
 		reporters: make([]Reporter, 0),
 	}, nil
 }
@@ -60,13 +60,13 @@ func (ch *Checker) Start(ctx context.Context) <-chan Status {
 
 // AddProbe adds a new Probe with the specified name.
 // The Probe will be executed during the health checking process.
-func (ch *Checker) AddProbe(name string, timeout time.Duration, checker Probe) *Checker {
+func (ch *Checker) AddProbe(name string, timeout time.Duration, probe Probe) *Checker {
 	ch.chMu.Lock()
 	defer ch.chMu.Unlock()
 
-	ch.checkers[name] = &probeConfig{
+	ch.probes[name] = &probeConfig{
 		name:    name,
-		probe:   checker,
+		probe:   probe,
 		timeout: timeout,
 	}
 
@@ -123,9 +123,9 @@ func (ch *Checker) startChecking(ctx context.Context) {
 		case <-ticker.C:
 			st := NewStatus()
 			wg := sync.WaitGroup{}
-			checkers := ch.getCheckers()
+			probes := ch.getProbes()
 
-			for i := range checkers {
+			for i := range probes {
 				wg.Add(1)
 
 				go func(pc *probeConfig) {
@@ -135,7 +135,7 @@ func (ch *Checker) startChecking(ctx context.Context) {
 					defer cancel()
 
 					st.Append(pc.name, pc.probe.Check(probeCtx))
-				}(checkers[i])
+				}(probes[i])
 			}
 
 			wg.Wait()
@@ -235,16 +235,16 @@ func (ch *Checker) startReporting(ctx context.Context) {
 	}
 }
 
-func (ch *Checker) getCheckers() []*probeConfig {
+func (ch *Checker) getProbes() []*probeConfig {
 	ch.chMu.RLock()
 	defer ch.chMu.RUnlock()
 
-	checkers := make([]*probeConfig, 0, len(ch.checkers))
-	for _, config := range ch.checkers {
-		checkers = append(checkers, config)
+	pbs := make([]*probeConfig, 0, len(ch.probes))
+	for _, config := range ch.probes {
+		pbs = append(pbs, config)
 	}
 
-	return checkers
+	return pbs
 }
 
 func (ch *Checker) getReporters() []Reporter {
