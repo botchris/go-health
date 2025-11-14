@@ -8,18 +8,21 @@ import (
 )
 
 type proto struct {
-	service string
-	server  HealthServer
+	opts *options
 }
 
-// New creates a new reporter that reports health status to the gRPC health server
-// under the given service name. If serviceName is an empty string, it
-// reports the overall server status instead of a specific service.
-func New(serviceName string, server HealthServer) health.Reporter {
-	return &proto{
-		service: serviceName,
-		server:  server,
+// New creates a new reporter that reports health status to the
+// gRPC health server. Use the option WithServiceName to specify
+// the service name to report the status for. If no service name
+// is provided, the status will be reported for the overall server.
+func New(server HealthServer, o ...Option) health.Reporter {
+	opts := &options{server: server}
+
+	for i := range o {
+		o[i](opts)
 	}
+
+	return &proto{opts: opts}
 }
 
 func (p proto) Report(_ context.Context, status health.Status) error {
@@ -28,7 +31,15 @@ func (p proto) Report(_ context.Context, status health.Status) error {
 		pbStatus = healthpb.HealthCheckResponse_SERVING
 	}
 
-	p.server.SetServingStatus(p.service, pbStatus)
+	if len(p.opts.serviceNames) == 0 {
+		p.opts.server.SetServingStatus("", pbStatus)
+
+		return nil
+	}
+
+	for i := range p.opts.serviceNames {
+		p.opts.server.SetServingStatus(p.opts.serviceNames[i], pbStatus)
+	}
 
 	return nil
 }
