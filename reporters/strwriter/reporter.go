@@ -40,7 +40,7 @@ func (i writer) statusToLogLine(status health.Status) string {
 
 	jsonOut, jErr := json.Marshal(out)
 	if jErr == nil {
-		return string(jsonOut)
+		return string(jsonOut) + "\n"
 	}
 
 	return fmt.Sprintf("failed to marshal health status to JSON: %v; raw status: %v", jErr, status.Errors())
