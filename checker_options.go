@@ -6,21 +6,23 @@ import "time"
 type CheckerOption func(*checkerOptions) error
 
 type checkerOptions struct {
-	initialDelay     time.Duration
-	period           time.Duration
-	successThreshold int
-	failureThreshold int
-	reporterTimeout  time.Duration
-	bufferSize       int
+	initialDelay        time.Duration
+	period              time.Duration
+	successThreshold    int
+	failureThreshold    int
+	probeDefaultTimeout time.Duration
+	reporterTimeout     time.Duration
+	bufferSize          int
 }
 
 var defaultCheckerOptions = checkerOptions{
-	initialDelay:     0,
-	period:           10 * time.Second,
-	successThreshold: 1,
-	failureThreshold: 3,
-	reporterTimeout:  30 * time.Second,
-	bufferSize:       10,
+	initialDelay:        0,
+	period:              10 * time.Second,
+	successThreshold:    1,
+	failureThreshold:    3,
+	probeDefaultTimeout: 5 * time.Second,
+	reporterTimeout:     30 * time.Second,
+	bufferSize:          10,
 }
 
 // WithInitialDelay sets an initial delay before the first health check is performed
@@ -89,6 +91,25 @@ func WithFailureThreshold(threshold int) CheckerOption {
 	}
 }
 
+// WithProbeDefaultTimeout sets the default timeout duration for probes.
+// The timeout must be at least 1 second. If a duration less than
+// 1 second is provided, it is rounded up to 1 second.
+// If not set, the default timeout is 5 seconds.
+//
+// This value is used if a probe does not specify its own timeout. See
+// Checker.AddProbe for more details.
+func WithProbeDefaultTimeout(d time.Duration) CheckerOption {
+	return func(o *checkerOptions) error {
+		if d < time.Second {
+			d = time.Second
+		}
+
+		o.probeDefaultTimeout = d
+
+		return nil
+	}
+}
+
 // WithReporterTimeout sets the timeout duration for reporter operations.
 // The timeout must be at least 1 second. If a duration less than
 // 1 second is provided, it is rounded up to 1 second.
@@ -107,6 +128,11 @@ func WithReporterTimeout(d time.Duration) CheckerOption {
 // WithBufferSize sets the buffer size for watcher channels.
 // The buffer size must be at least 1. If a value less than 1
 // is provided, it defaults to 1.
+//
+// This value determines how many status updates can be queued
+// for watchers before starting to drop updates. A slow watcher
+// may miss some updates if it cannot keep up with the health
+// checking frequency.
 func WithBufferSize(size int) CheckerOption {
 	return func(o *checkerOptions) error {
 		if size < 1 {

@@ -21,7 +21,7 @@ func TestHealth_RegisterAndStart_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	successProbe := health.ProbeFunc(func(ctx context.Context) error { return nil })
-	checker.AddProbe("success", 50*time.Millisecond, successProbe)
+	checker.AddProbe("success", successProbe, 50*time.Millisecond)
 
 	for st := range checker.Start(ctx) {
 		require.NoError(t, st.AsError())
@@ -37,7 +37,7 @@ func TestHealth_RegisterAndStart_Failure(t *testing.T) {
 	require.NoError(t, err)
 
 	failProbe := health.ProbeFunc(func(ctx context.Context) error { return errors.New("fail") })
-	checker.AddProbe("fail", 50*time.Millisecond, failProbe)
+	checker.AddProbe("fail", failProbe, 50*time.Millisecond)
 
 	for st := range checker.Start(ctx) {
 		require.Error(t, st.AsError())
@@ -56,8 +56,8 @@ func TestHealth_MultipleCheckers(t *testing.T) {
 	successProbe := health.ProbeFunc(func(ctx context.Context) error { return nil })
 	failProbe := health.ProbeFunc(func(ctx context.Context) error { return sentinel })
 
-	checker.AddProbe("success", 50*time.Millisecond, successProbe)
-	checker.AddProbe("fail", 50*time.Millisecond, failProbe)
+	checker.AddProbe("success", successProbe, 50*time.Millisecond)
+	checker.AddProbe("fail", failProbe, 50*time.Millisecond)
 
 	for st := range checker.Start(ctx) {
 		require.ErrorIs(t, st.AsError(), sentinel)
@@ -76,7 +76,7 @@ func TestHealth_WithInitialDelay(t *testing.T) {
 	require.NoError(t, err)
 
 	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
-	checker.AddProbe("delayed", 1*time.Second, probe)
+	checker.AddProbe("delayed", probe, time.Second)
 
 	start := time.Now()
 	statusCh := checker.Start(ctx)
@@ -106,7 +106,7 @@ func TestHealth_WithSuccessThreshold(t *testing.T) {
 		return nil
 	})
 
-	checker.AddProbe("success", 50*time.Millisecond, successProbe)
+	checker.AddProbe("success", successProbe, 50*time.Millisecond)
 
 	statusCh := checker.Start(ctx)
 	seenStatuses := 0
@@ -140,7 +140,7 @@ func TestHealth_WithFailureThreshold(t *testing.T) {
 		return errors.New("fail")
 	})
 
-	checker.AddProbe("fail", 50*time.Millisecond, failProbe)
+	checker.AddProbe("fail", failProbe, 50*time.Millisecond)
 
 	statusCh := checker.Start(ctx)
 	seenStatuses := 0
@@ -165,7 +165,7 @@ func TestHealth_Watch_EmitsStatusChanges(t *testing.T) {
 	require.NoError(t, err)
 
 	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
-	checker.AddProbe("watch", 50*time.Millisecond, probe)
+	checker.AddProbe("watch", probe, 50*time.Millisecond)
 
 	watchCh := checker.Watch()
 
@@ -188,7 +188,7 @@ func TestHealth_Watch_ClosedOnContextCancel(t *testing.T) {
 	require.NoError(t, err)
 
 	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
-	checker.AddProbe("watch-cancel", 50*time.Millisecond, probe)
+	checker.AddProbe("watch-cancel", probe, 50*time.Millisecond)
 
 	watchCh := checker.Watch()
 	checker.Start(ctx)
@@ -207,7 +207,7 @@ func TestHealth_MultipleWatchers_ReceiveSameStatuses(t *testing.T) {
 	require.NoError(t, err)
 
 	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
-	checker.AddProbe("multi-watch", 50*time.Millisecond, probe)
+	checker.AddProbe("multi-watch", probe, 50*time.Millisecond)
 
 	watchCh1 := checker.Watch()
 	watchCh2 := checker.Watch()
@@ -245,7 +245,7 @@ func TestHealth_Reporter_ReceivesStatusUpdates(t *testing.T) {
 	require.NoError(t, err)
 
 	probe := health.ProbeFunc(func(ctx context.Context) error { return nil })
-	checker.AddProbe("reporter-probe", 50*time.Millisecond, probe)
+	checker.AddProbe("reporter-probe", probe, 50*time.Millisecond)
 
 	mock := &mockReporter{}
 	checker.AddReporter(mock)
