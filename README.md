@@ -134,6 +134,10 @@ You can configure the Checker using the following functional options:
 - **FailureThreshold**: Sets the number of consecutive failed checks required to consider the system unhealthy.  
   The minimum allowed value is 1. Defaults to 3.
 
+- **ProbeDefaultTimeout**: Sets the default timeout duration for probes that do not have a specific timeout set.  
+  The minimum allowed value is 1 second; smaller values are rounded up.  
+  Defaults to 5 seconds.
+
 - **ReporterTimeout**: Sets the timeout duration for reporter operations.  
   The minimum allowed value is 1 second; smaller values are rounded up.  
   Defaults to 30 seconds.
