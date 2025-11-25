@@ -150,6 +150,7 @@ checker, err := health.NewChecker(
     health.WithInitialDelay(2 * time.Second),
     health.WithSuccessThreshold(2),
     health.WithFailureThreshold(3),
+	health.WithProbeDefaultTimeout(7 * time.Second),
     health.WithReporterTimeout(10 * time.Second),
 )
 ```
@@ -159,6 +160,9 @@ with an initial delay of 2 seconds before the first check.
 
 It requires 2 consecutive successful checks to consider the system healthy and 3 consecutive
 failed checks to consider it unhealthy. The status won't be reported until any of these thresholds are met.
+
+Ech probe will use a default timeout of 7 seconds unless a specific timeout is set for that probe.
+The reporter will have a timeout of 10 seconds to handle each status update.
 
 ### Reporter
 
