@@ -60,14 +60,23 @@ func (ch *Checker) Start(ctx context.Context) <-chan Status {
 
 // AddProbe adds a new Probe with the specified name.
 // The Probe will be executed during the health checking process.
-func (ch *Checker) AddProbe(name string, timeout time.Duration, probe Probe) *Checker {
+//
+// An optional timeout can be provided for the Probe execution.
+// If no timeout is specified, or it is less than 1 second, the Checker's
+// default probe timeout will be used instead (5 seconds).
+func (ch *Checker) AddProbe(name string, probe Probe, timeout ...time.Duration) *Checker {
 	ch.chMu.Lock()
 	defer ch.chMu.Unlock()
+
+	tout := ch.opts.probeDefaultTimeout
+	if len(timeout) > 0 && timeout[0] >= time.Second {
+		tout = timeout[0]
+	}
 
 	ch.probes[name] = &probeConfig{
 		name:    name,
 		probe:   probe,
-		timeout: timeout,
+		timeout: tout,
 	}
 
 	return ch

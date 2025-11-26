@@ -42,11 +42,11 @@ func main() {
 	}
 
 	// 3. Add a simple probe.
-	checker.AddProbe("mysql-db01", time.Second, health.ProbeFunc(func(context.Context) error {
+	checker.AddProbe("mysql-db01", health.ProbeFunc(func(context.Context) error {
 		time.Sleep(100 * time.Millisecond) // Simulate a database check
 
 		return nil // return an error if the check fails
-	}))
+	}), time.Second)
 
 	// 4. Add string writer reporter to output health status to console.
 	checker.AddReporter(strwriter.New(os.Stdout))
@@ -134,6 +134,10 @@ You can configure the Checker using the following functional options:
 - **FailureThreshold**: Sets the number of consecutive failed checks required to consider the system unhealthy.  
   The minimum allowed value is 1. Defaults to 3.
 
+- **ProbeDefaultTimeout**: Sets the default timeout duration for probes that do not have a specific timeout set.  
+  The minimum allowed value is 1 second; smaller values are rounded up.  
+  Defaults to 5 seconds.
+
 - **ReporterTimeout**: Sets the timeout duration for reporter operations.  
   The minimum allowed value is 1 second; smaller values are rounded up.  
   Defaults to 30 seconds.
@@ -146,6 +150,7 @@ checker, err := health.NewChecker(
     health.WithInitialDelay(2 * time.Second),
     health.WithSuccessThreshold(2),
     health.WithFailureThreshold(3),
+	health.WithProbeDefaultTimeout(7 * time.Second),
     health.WithReporterTimeout(10 * time.Second),
 )
 ```
@@ -155,6 +160,9 @@ with an initial delay of 2 seconds before the first check.
 
 It requires 2 consecutive successful checks to consider the system healthy and 3 consecutive
 failed checks to consider it unhealthy. The status won't be reported until any of these thresholds are met.
+
+Ech probe will use a default timeout of 7 seconds unless a specific timeout is set for that probe.
+The reporter will have a timeout of 10 seconds to handle each status update.
 
 ### Reporter
 
